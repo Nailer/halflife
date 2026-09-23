@@ -1,0 +1,5 @@
+[subject]
+name = "orchard-action-circuit"
+repository = "https://github.com/zcash/orchard"
+commit = "7c3b9a2f5e18d4c6b0a91f3d82e7c4551ad0b6e9"
+proof_system = "halo2"

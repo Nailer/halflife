@@ -1,0 +1,11 @@
+{
+  "halo2_gadgets@0.4.0": [
+    "GHSA-ww9q-8r59-xv46"
+  ],
+  "orchard@0.13.1": [
+    "GHSA-ww9q-8r59-xv46"
+  ],
+  "zcash_primitives@0.27.1": [
+    "GHSA-ww9q-8r59-xv46"
+  ]
+}

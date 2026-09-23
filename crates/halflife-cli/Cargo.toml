@@ -1,0 +1,23 @@
+[package]
+name = "halflife-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "halflife"
+path = "src/main.rs"
+
+[dependencies]
+halflife-core = { path = "../halflife-core" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+bs58.workspace = true
+toml.workspace = true
+ed25519-dalek.workspace = true
+clap = { version = "4", features = ["derive"] }
+ureq = { version = "2", features = ["json"] }
+getrandom = "0.2"
