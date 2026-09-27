@@ -7,12 +7,13 @@
 mod keys;
 mod lockfile;
 mod osv;
+mod vectors;
 
 use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 use halflife_core::{
-    Capability, Dependency, EffectiveStatus, Evidence, Method, PassportCore, SignedPassport,
-    Subject, PASSPORT_VERSION,
+    Capability, Dependency, DisclosureState, EffectiveStatus, Evidence, Method, PassportCore,
+    SignedPassport, Subject, PASSPORT_VERSION,
 };
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -54,6 +55,17 @@ enum Cmd {
         /// Passport lifetime in seconds.
         #[arg(long, default_value_t = 86_400)]
         ttl: i64,
+        /// Monotonic sequence for this (circuit, issuer). Must increase.
+        #[arg(long, default_value_t = 1)]
+        sequence: u64,
+        /// Whether the underlying finding may be discussed publicly.
+        #[arg(long, value_enum, default_value_t = Disclosure::Embargoed)]
+        disclosure: Disclosure,
+    },
+    /// Generate or verify the conformance vectors that pin the wire format.
+    Vectors {
+        #[command(subcommand)]
+        op: VectorOp,
     },
     /// Verify a passport's signature and bindings, and resolve its status now.
     Verify {
@@ -65,6 +77,35 @@ enum Cmd {
         #[arg(long)]
         at: Option<i64>,
     },
+}
+
+#[derive(Subcommand)]
+enum VectorOp {
+    /// Regenerate vectors from the fixed test key.
+    Generate {
+        #[arg(short, long, default_value = "fixtures/vectors.json")]
+        out: PathBuf,
+    },
+    /// Check that this implementation reproduces every vector byte-for-byte.
+    Verify {
+        #[arg(default_value = "fixtures/vectors.json")]
+        path: PathBuf,
+    },
+}
+
+#[derive(Copy, Clone, Debug, clap::ValueEnum)]
+enum Disclosure {
+    Public,
+    Embargoed,
+}
+
+impl From<Disclosure> for DisclosureState {
+    fn from(d: Disclosure) -> Self {
+        match d {
+            Disclosure::Public => DisclosureState::Public,
+            Disclosure::Embargoed => DisclosureState::Embargoed,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -97,10 +138,25 @@ fn main() -> Result<()> {
             offline,
             snapshot,
             ttl,
+            sequence,
+            disclosure,
         } => {
             let out = out.unwrap_or_else(|| target.join("out"));
-            scan(&target, &issuer, &out, offline, &snapshot, ttl)
+            scan(
+                &target,
+                &issuer,
+                &out,
+                offline,
+                &snapshot,
+                ttl,
+                sequence,
+                disclosure.into(),
+            )
         }
+        Cmd::Vectors { op } => match op {
+            VectorOp::Generate { out } => vectors::generate(&out),
+            VectorOp::Verify { path } => vectors::verify(&path),
+        },
         Cmd::Verify {
             passport,
             evidence,
@@ -123,6 +179,7 @@ fn keygen(out: &Path) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn scan(
     target: &Path,
     issuer_path: &Path,
@@ -130,6 +187,8 @@ fn scan(
     offline: bool,
     snapshot: &Path,
     ttl: i64,
+    sequence: u64,
+    disclosure: DisclosureState,
 ) -> Result<()> {
     let cfg_path = target.join("halflife.toml");
     let cfg: TargetConfig = toml::from_str(
@@ -185,6 +244,7 @@ fn scan(
             proof_system: cfg.subject.proof_system,
         },
         capability: Capability::C1,
+        disclosure,
         methods: vec![
             Method {
                 id: "closure.resolve".into(),
@@ -209,6 +269,7 @@ fn scan(
         version: PASSPORT_VERSION,
         circuit_hash: evidence.circuit_hash(),
         issuer: keys::Issuer::load(issuer_path)?.pubkey_bytes(),
+        sequence,
         capability: evidence.capability,
         status: evidence.derive_status(),
         issued_at,
@@ -244,6 +305,8 @@ fn scan(
     println!("evidence  {}", hex::encode(signed.core.evidence_hash));
     println!("issuer    {}", signed.issuer_id);
     println!("capability C{}", signed.core.capability.tier());
+    println!("sequence  {}", signed.core.sequence);
+    println!("disclosure {:?}", disclosure);
     if hits.is_empty() {
         println!("findings  none");
     } else {

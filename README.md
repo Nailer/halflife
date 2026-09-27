@@ -6,13 +6,20 @@ A cryptographic audit tells you what someone knew then. A passport tells your
 application what has actually been verified, at what capability, about the exact
 build you are trusting — and lets that status travel.
 
-## Status: v0.1 — the passport primitive
+## Status: v1.0.0 — wire format frozen
 
-Deterministic path only. No model is involved anywhere in this repository.
+Deterministic path only. No model is involved anywhere in this repository, and
+the tool claims capability **C1** — nothing above it.
 
 - [x] Lineage: resolve a circuit's dependency closure and match it against advisories
-- [x] Passport: 117-byte signed core + hash-bound off-chain evidence
-- [x] Fail-safe expiry semantics
+- [x] Passport: 125-byte signed core + hash-bound off-chain evidence
+- [x] Fail-safe expiry — `STALE` is derived by the reader, never issuable
+- [x] `sequence`, supersession, forward-only issuer revocation, clock bounds
+- [x] `decide()` — absence is not permission
+- [x] Conformance vectors, reproduced by an independent implementation
+- [x] Disclosure policy, published before the first scan
+- [ ] Registry + reverse index
+- [ ] Projection (`halflife impact`)
 - [ ] Solana registry program
 - [ ] Hyperlane propagation
 - [ ] Constraint analysis (C2+)
@@ -27,6 +34,13 @@ cargo build --release
 ```
 
 Or run the whole sequence: `./scripts/demo.sh`
+
+Check the format against both implementations:
+
+```bash
+./target/release/halflife vectors verify fixtures/vectors.json
+node packages/passport-ts/verify-vectors.mjs fixtures/vectors.json
+```
 
 ## Why this exists
 
@@ -67,6 +81,7 @@ stay reproducible without a network round trip.
 
 - [`docs/passport-spec.md`](docs/passport-spec.md) — wire format, signing, the fail-safe
 - [`docs/capability-model.md`](docs/capability-model.md) — the C0–C5 ladder
+- [`docs/disclosure-policy.md`](docs/disclosure-policy.md) — what we scan, what we publish, and the limits of embargo
 
 ## What this does not claim
 
