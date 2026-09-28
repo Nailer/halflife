@@ -54,10 +54,10 @@ disclosure obligation under Gate A.
 
 ## Stage 4 — Solana enforcement
 
-- [ ] **B4.1** Anchor scaffold — passport and issuer PDAs
-- [ ] **B4.2** `publish` / `supersede` / `revoke` with ed25519 verification
-- [ ] **B4.3** Reference consumer that halts
-- [ ] **B4.4** CU benchmark, reproducible from a committed script
+- [x] **B4.1** Anchor scaffold — passport and issuer PDAs
+- [x] **B4.2** `publish` / `supersede` / `revoke` with ed25519 verification
+- [x] **B4.3** Reference consumer that halts
+- [x] **B4.4** CU benchmark, reproducible from a committed script
 - [ ] **B4.5** Devnet deployment
 
 **Gate E** — does the number support the thesis? Hard gate. Cannot be

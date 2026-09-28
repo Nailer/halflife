@@ -109,3 +109,17 @@ with it, the demo proves Halflife discriminates.
 | Yank status as tracked data | `halo2_gadgets` 0.1.0–0.4.0 are all yanked. "Yanked **and** carrying an advisory" is a stronger signal than either alone, but modelling it is dependency intelligence, not Stage 2 storage | P4A |
 | Full transitive closure | The fleet tracks four crates rather than resolving whole graphs | P4A |
 | Optional/dev dependency distinction in the data model | Currently a fixture comment only | P4A |
+
+## Measured, on the record
+
+| What | Measured | Where |
+|---|---|---|
+| Consumer passport check | **1,520 CU** | `cargo run --release -p halflife-bench` |
+| Publish a signed passport | 11,550 CU | same |
+| Register an issuer | 7,406 CU | same |
+
+1,520 CU is 0.76% of a default 200,000 CU transaction budget, and 0.0015% of the
+100M CU block limit. The check is affordable inside a hot path, which is the
+claim the Solana layer rests on (E2). The figure includes account
+deserialization and instruction dispatch — bracketing only the comparisons would
+produce a smaller number nobody could reproduce in practice.

@@ -1,0 +1,19 @@
+[package]
+name = "halflife-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Measured compute cost of a passport check on Solana"
+
+[[bin]]
+name = "halflife-bench"
+path = "src/main.rs"
+
+[dependencies]
+halflife-core = { path = "../halflife-core" }
+anyhow.workspace = true
+hex.workspace = true
+ed25519-dalek.workspace = true
+sha2.workspace = true
+litesvm = "0.6"
+solana-sdk = "2.2"

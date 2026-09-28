@@ -29,7 +29,7 @@ use anchor_lang::solana_program::sysvar::instructions::{
 /// check does not move if the solana-program module layout changes.
 pub const ED25519_PROGRAM_ID: Pubkey = pubkey!("Ed25519SigVerify111111111111111111111111111");
 
-declare_id!("HLFpass1111111111111111111111111111111111111");
+declare_id!("CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2");
 
 /// Must match `halflife_core::SIGNING_DOMAIN`.
 pub const SIGNING_DOMAIN: &[u8] = b"halflife-passport-v1";

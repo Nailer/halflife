@@ -22,7 +22,7 @@
 use anchor_lang::prelude::*;
 use halflife_passport::{Effective, Passport};
 
-declare_id!("HLFcons1111111111111111111111111111111111111");
+declare_id!("BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW");
 
 #[program]
 pub mod halflife_consumer {

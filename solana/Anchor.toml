@@ -5,8 +5,8 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-halflife_passport = "HLFpass1111111111111111111111111111111111111"
-halflife_consumer = "HLFcons1111111111111111111111111111111111111"
+halflife_consumer = "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW"
+halflife_passport = "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2"
 
 [registry]
 url = "https://api.apr.dev"
