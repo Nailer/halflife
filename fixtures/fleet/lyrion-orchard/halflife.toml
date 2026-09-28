@@ -1,0 +1,5 @@
+[subject]
+name = "lyrion-orchard"
+repository = "https://crates.io/crates/lyrion-orchard"
+commit = "crates.io:lyrion-orchard@0.11.0"
+proof_system = "halo2"

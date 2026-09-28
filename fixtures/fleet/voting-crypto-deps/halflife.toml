@@ -1,0 +1,5 @@
+[subject]
+name = "voting-crypto-deps"
+repository = "https://crates.io/crates/voting-crypto-deps"
+commit = "crates.io:voting-crypto-deps@0.2.3"
+proof_system = "halo2"

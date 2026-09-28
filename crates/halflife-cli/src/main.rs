@@ -1,23 +1,23 @@
-//! `halflife` — produce and inspect Security Passports.
+//! `halflife` — produce, register and inspect Security Passports.
 //!
-//! v0.1 does exactly one deterministic thing: resolve a circuit's dependency
-//! closure, match it against published advisories, and emit a signed passport.
-//! No model is involved, and the tool claims capability C1 only.
+//! The deterministic path only. No model is involved anywhere, and the tool
+//! claims capability C1: dependency closure resolution and advisory matching.
 
 mod keys;
-mod lockfile;
-mod osv;
 mod vectors;
 
 use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 use halflife_core::{
-    Capability, Dependency, DisclosureState, EffectiveStatus, Evidence, Method, PassportCore,
-    SignedPassport, Subject, PASSPORT_VERSION,
+    DisclosureState, EffectiveStatus, Evidence, PassportCore, SignedPassport, Status,
+    PASSPORT_VERSION,
 };
-use serde::Deserialize;
+use halflife_lineage::{resolve, AdvisorySource};
+use halflife_registry::Store;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+const DEFAULT_REGISTRY: &str = "halflife.db";
 
 #[derive(Parser)]
 #[command(
@@ -37,56 +37,78 @@ enum Cmd {
         #[arg(short, long, default_value = "issuer.json")]
         out: PathBuf,
     },
-    /// Scan a circuit's dependency closure and emit a signed passport.
+    /// Scan a circuit's closure and emit a signed passport to disk.
     Scan {
-        /// Directory holding halflife.toml and Cargo.lock.
         target: PathBuf,
-        #[arg(short, long, default_value = "issuer.json")]
-        issuer: PathBuf,
-        /// Output directory for passport.json and evidence.json.
+        #[command(flatten)]
+        common: ScanArgs,
         #[arg(short, long)]
         out: Option<PathBuf>,
-        /// Use a pinned advisory snapshot instead of querying OSV.
+    },
+    /// Scan a circuit and record it in the registry.
+    Register {
+        target: PathBuf,
+        #[command(flatten)]
+        common: ScanArgs,
+        #[arg(long, default_value = DEFAULT_REGISTRY)]
+        registry: PathBuf,
+    },
+    /// Inspect the registry.
+    Registry {
+        #[command(subcommand)]
+        op: RegistryOp,
+        #[arg(long, default_value = DEFAULT_REGISTRY, global = true)]
+        registry: PathBuf,
+    },
+    /// Verify a passport's signature and bindings, and resolve its status now.
+    Verify {
+        passport: PathBuf,
+        #[arg(short, long)]
+        evidence: Option<PathBuf>,
         #[arg(long)]
-        offline: bool,
-        /// Snapshot path used with --offline.
-        #[arg(long, default_value = "fixtures/osv-snapshot.json")]
-        snapshot: PathBuf,
-        /// Passport lifetime in seconds.
-        #[arg(long, default_value_t = 86_400)]
-        ttl: i64,
-        /// Monotonic sequence for this (circuit, issuer). Must increase.
-        #[arg(long, default_value_t = 1)]
-        sequence: u64,
-        /// Whether the underlying finding may be discussed publicly.
-        #[arg(long, value_enum, default_value_t = Disclosure::Embargoed)]
-        disclosure: Disclosure,
+        at: Option<i64>,
     },
     /// Generate or verify the conformance vectors that pin the wire format.
     Vectors {
         #[command(subcommand)]
         op: VectorOp,
     },
-    /// Verify a passport's signature and bindings, and resolve its status now.
-    Verify {
-        passport: PathBuf,
-        /// Evidence file, to confirm evidence_hash actually binds.
-        #[arg(short, long)]
-        evidence: Option<PathBuf>,
-        /// Evaluate the clock at this unix time instead of now.
-        #[arg(long)]
-        at: Option<i64>,
-    },
+}
+
+#[derive(clap::Args)]
+struct ScanArgs {
+    #[arg(short, long, default_value = "issuer.json")]
+    issuer: PathBuf,
+    /// Use a pinned advisory snapshot instead of querying OSV.
+    #[arg(long)]
+    offline: bool,
+    #[arg(long, default_value = "fixtures/osv-snapshot.json")]
+    snapshot: PathBuf,
+    /// Passport lifetime in seconds.
+    #[arg(long, default_value_t = 86_400)]
+    ttl: i64,
+    /// Monotonic sequence for this (circuit, issuer). Must increase.
+    #[arg(long, default_value_t = 1)]
+    sequence: u64,
+    /// Whether the underlying finding may be discussed publicly.
+    #[arg(long, value_enum, default_value_t = Disclosure::Embargoed)]
+    disclosure: Disclosure,
+}
+
+#[derive(Subcommand)]
+enum RegistryOp {
+    /// Every registered circuit and its current status.
+    List,
+    /// Every distinct dependency the registry knows about.
+    Deps,
 }
 
 #[derive(Subcommand)]
 enum VectorOp {
-    /// Regenerate vectors from the fixed test key.
     Generate {
         #[arg(short, long, default_value = "fixtures/vectors.json")]
         out: PathBuf,
     },
-    /// Check that this implementation reproduces every vector byte-for-byte.
     Verify {
         #[arg(default_value = "fixtures/vectors.json")]
         path: PathBuf,
@@ -108,19 +130,6 @@ impl From<Disclosure> for DisclosureState {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct TargetConfig {
-    subject: SubjectConfig,
-}
-
-#[derive(Debug, Deserialize)]
-struct SubjectConfig {
-    name: String,
-    repository: String,
-    commit: String,
-    proof_system: String,
-}
-
 fn now() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -133,35 +142,44 @@ fn main() -> Result<()> {
         Cmd::Keygen { out } => keygen(&out),
         Cmd::Scan {
             target,
-            issuer,
+            common,
             out,
-            offline,
-            snapshot,
-            ttl,
-            sequence,
-            disclosure,
         } => {
             let out = out.unwrap_or_else(|| target.join("out"));
-            scan(
-                &target,
-                &issuer,
-                &out,
-                offline,
-                &snapshot,
-                ttl,
-                sequence,
-                disclosure.into(),
-            )
+            let (evidence, signed) = build(&target, &common)?;
+            report(&evidence, &signed);
+            write_out(&out, &evidence, &signed)?;
+            println!("written   {}", out.display());
+            Ok(())
         }
-        Cmd::Vectors { op } => match op {
-            VectorOp::Generate { out } => vectors::generate(&out),
-            VectorOp::Verify { path } => vectors::verify(&path),
+        Cmd::Register {
+            target,
+            common,
+            registry,
+        } => {
+            let (evidence, signed) = build(&target, &common)?;
+            report(&evidence, &signed);
+            let mut store = Store::open(&registry)?;
+            let hash = store.register(&evidence, &signed, now())?;
+            println!("registered {} in {}", &hash[..16], registry.display());
+            if !evidence.is_public() {
+                println!("           evidence withheld — finding is embargoed");
+            }
+            Ok(())
+        }
+        Cmd::Registry { op, registry } => match op {
+            RegistryOp::List => registry_list(&registry),
+            RegistryOp::Deps => registry_deps(&registry),
         },
         Cmd::Verify {
             passport,
             evidence,
             at,
         } => verify(&passport, evidence.as_deref(), at.unwrap_or_else(now)),
+        Cmd::Vectors { op } => match op {
+            VectorOp::Generate { out } => vectors::generate(&out),
+            VectorOp::Verify { path } => vectors::verify(&path),
+        },
     }
 }
 
@@ -179,138 +197,65 @@ fn keygen(out: &Path) -> Result<()> {
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-fn scan(
-    target: &Path,
-    issuer_path: &Path,
-    out: &Path,
-    offline: bool,
-    snapshot: &Path,
-    ttl: i64,
-    sequence: u64,
-    disclosure: DisclosureState,
-) -> Result<()> {
-    let cfg_path = target.join("halflife.toml");
-    let cfg: TargetConfig = toml::from_str(
-        &std::fs::read_to_string(&cfg_path)
-            .with_context(|| format!("reading {}", cfg_path.display()))?,
-    )
-    .with_context(|| format!("parsing {}", cfg_path.display()))?;
-
-    let packages = lockfile::parse(&target.join("Cargo.lock"))?;
-    let registry: Vec<(String, String)> = packages
-        .iter()
-        .filter(|p| p.from_registry)
-        .map(|p| (p.name.clone(), p.version.clone()))
-        .collect();
+/// Resolve a target and issue a passport over it.
+fn build(target: &Path, args: &ScanArgs) -> Result<(Evidence, SignedPassport)> {
+    let source = if args.offline {
+        AdvisorySource::Snapshot(&args.snapshot)
+    } else {
+        AdvisorySource::Osv
+    };
+    let closure = resolve(target, source, args.disclosure.into())?;
+    let evidence = closure.evidence;
 
     println!(
         "closure   {} packages ({} from registry)",
-        packages.len(),
-        registry.len()
+        evidence.dependencies.len(),
+        closure.registry_count
     );
+    println!("advisory  {}", evidence.advisory_source);
 
-    let advisories = if offline {
-        println!("advisory  snapshot {}", snapshot.display());
-        osv::lookup_offline(snapshot)?
-    } else {
-        println!("advisory  osv.dev (crates.io)");
-        osv::lookup_online(&registry)?
-    };
-
-    let dependencies: Vec<Dependency> = packages
-        .iter()
-        .map(|p| Dependency {
-            name: p.name.clone(),
-            version: p.version.clone(),
-            checksum: p.checksum.clone(),
-            advisories: if p.from_registry {
-                advisories
-                    .get(&osv::key(&p.name, &p.version))
-                    .cloned()
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
-            },
-        })
-        .collect();
-
-    let mut evidence = Evidence {
-        evidence_version: 1,
-        subject: Subject {
-            name: cfg.subject.name,
-            repository: cfg.subject.repository,
-            commit: cfg.subject.commit,
-            proof_system: cfg.subject.proof_system,
-        },
-        capability: Capability::C1,
-        disclosure,
-        methods: vec![
-            Method {
-                id: "closure.resolve".into(),
-                description: "Resolve the dependency closure from Cargo.lock".into(),
-            },
-            Method {
-                id: "advisory.match".into(),
-                description: "Match each registry package name@version against OSV".into(),
-            },
-        ],
-        advisory_source: if offline {
-            format!("snapshot:{}", snapshot.display())
-        } else {
-            "osv.dev/v1/querybatch".into()
-        },
-        dependencies,
-    };
-    evidence.normalize();
-
+    let issuer = keys::Issuer::load(&args.issuer)?;
     let issued_at = now();
     let core = PassportCore {
         version: PASSPORT_VERSION,
         circuit_hash: evidence.circuit_hash(),
-        issuer: keys::Issuer::load(issuer_path)?.pubkey_bytes(),
-        sequence,
+        issuer: issuer.pubkey_bytes(),
+        sequence: args.sequence,
         capability: evidence.capability,
         status: evidence.derive_status(),
         issued_at,
-        expires_at: issued_at + ttl,
+        expires_at: issued_at + args.ttl,
         evidence_hash: evidence.hash()?,
         advisory_count: evidence.advisory_count().min(u16::MAX as usize) as u16,
     };
 
-    let issuer = keys::Issuer::load(issuer_path)?;
     let signed = SignedPassport {
         signature: issuer.sign(&core.signing_preimage()),
         issuer_id: issuer.pubkey_b58(),
         core,
     };
+    Ok((evidence, signed))
+}
 
-    std::fs::create_dir_all(out).with_context(|| format!("creating {}", out.display()))?;
-    std::fs::write(
-        out.join("evidence.json"),
-        serde_json::to_vec_pretty(&evidence)?,
-    )?;
-    std::fs::write(
-        out.join("passport.json"),
-        serde_json::to_vec_pretty(&signed)?,
-    )?;
-
-    let hits: Vec<&Dependency> = evidence
+fn report(evidence: &Evidence, signed: &SignedPassport) {
+    println!("circuit   {}", hex::encode(signed.core.circuit_hash));
+    println!("evidence  {}", hex::encode(signed.core.evidence_hash));
+    println!("issuer    {}", signed.issuer_id);
+    println!(
+        "capability C{}  seq {}  disclosure {:?}",
+        signed.core.capability.tier(),
+        signed.core.sequence,
+        evidence.disclosure
+    );
+    let hits: Vec<_> = evidence
         .dependencies
         .iter()
         .filter(|d| !d.advisories.is_empty())
         .collect();
-
-    println!("circuit   {}", hex::encode(signed.core.circuit_hash));
-    println!("evidence  {}", hex::encode(signed.core.evidence_hash));
-    println!("issuer    {}", signed.issuer_id);
-    println!("capability C{}", signed.core.capability.tier());
-    println!("sequence  {}", signed.core.sequence);
-    println!("disclosure {:?}", disclosure);
     if hits.is_empty() {
         println!("findings  none");
     } else {
-        for d in &hits {
+        for d in hits {
             println!(
                 "findings  {}@{}  {}",
                 d.name,
@@ -320,8 +265,91 @@ fn scan(
         }
     }
     println!("status    {:?}", signed.core.status);
-    println!("written   {}", out.display());
+}
+
+fn write_out(out: &Path, evidence: &Evidence, signed: &SignedPassport) -> Result<()> {
+    std::fs::create_dir_all(out).with_context(|| format!("creating {}", out.display()))?;
+    std::fs::write(
+        out.join("evidence.json"),
+        serde_json::to_vec_pretty(evidence)?,
+    )?;
+    std::fs::write(
+        out.join("passport.json"),
+        serde_json::to_vec_pretty(signed)?,
+    )?;
     Ok(())
+}
+
+fn registry_list(path: &Path) -> Result<()> {
+    let store = Store::open(path)?;
+    let circuits = store.circuits()?;
+    if circuits.is_empty() {
+        println!("registry is empty — run `halflife register <target>`");
+        return Ok(());
+    }
+    let n = now();
+    println!(
+        "{:<18} {:<12} {:>5}  {:<9} {}",
+        "CIRCUIT", "ID", "DEPS", "STATUS", "SUBJECT"
+    );
+    let mut affected = 0usize;
+    for c in &circuits {
+        let deps = store.dependency_count(&c.circuit_hash)?;
+        let status = match store.latest_passport(&c.circuit_hash)? {
+            Some(p) => {
+                let core_like = (p.status, p.expires_at);
+                match core_like {
+                    (Status::Invalid, _) => "INVALID",
+                    (Status::Valid, exp) if n >= exp => "STALE",
+                    _ => "VALID",
+                }
+            }
+            // Absence is not permission: a registered circuit with no passport
+            // is not a healthy one.
+            None => "NONE",
+        };
+        if status == "INVALID" {
+            affected += 1;
+        }
+        println!(
+            "{:<18} {:<12} {:>5}  {:<9} {}",
+            truncate(&c.name, 18),
+            &c.circuit_hash[..12],
+            deps,
+            status,
+            c.repository
+        );
+    }
+    println!(
+        "\n{} registered · {} invalid · {} clean",
+        circuits.len(),
+        affected,
+        circuits.len() - affected
+    );
+    Ok(())
+}
+
+fn registry_deps(path: &Path) -> Result<()> {
+    let store = Store::open(path)?;
+    let deps = store.known_dependencies()?;
+    if deps.is_empty() {
+        println!("registry is empty");
+        return Ok(());
+    }
+    println!("{:<28} {:<12} {:>8}", "DEPENDENCY", "VERSION", "CIRCUITS");
+    for (name, version, count) in &deps {
+        println!("{:<28} {:<12} {:>8}", truncate(name, 28), version, count);
+    }
+    println!("\n{} distinct dependencies", deps.len());
+    Ok(())
+}
+
+fn truncate(s: &str, n: usize) -> String {
+    if s.len() <= n {
+        s.to_string()
+    } else {
+        format!("{}…", &s[..n - 1])
+    }
 }
 
 fn verify(passport: &Path, evidence: Option<&Path>, at: i64) -> Result<()> {
@@ -331,8 +359,6 @@ fn verify(passport: &Path, evidence: Option<&Path>, at: i64) -> Result<()> {
         &std::fs::read(passport).with_context(|| format!("reading {}", passport.display()))?,
     )?;
 
-    // The advertised issuer id and the key inside the signed core must agree,
-    // or a passport could name one issuer while being signed by another.
     let declared = bs58::decode(&signed.issuer_id)
         .into_vec()
         .context("issuer_id is not valid base58")?;
@@ -364,14 +390,17 @@ fn verify(passport: &Path, evidence: Option<&Path>, at: i64) -> Result<()> {
         println!("evidence  binds ({} deps)", ev.dependencies.len());
     }
 
+    if !signed.core.within_clock_bounds(at) {
+        return Err(anyhow!("passport is outside acceptable clock bounds"));
+    }
+
     let effective = signed.core.status_at(at);
+    println!("sequence  {}", signed.core.sequence);
     println!("issued    {}", signed.core.issued_at);
     println!("expires   {}", signed.core.expires_at);
     println!("evaluated {}", at);
     println!("effective {:?}", effective);
 
-    // Exit non-zero on anything a consumer would block on, so this is usable in
-    // CI and in the demo harness without parsing stdout.
     if effective != EffectiveStatus::Valid {
         std::process::exit(2);
     }

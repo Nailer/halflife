@@ -1,0 +1,5 @@
+[subject]
+name = "zk-psi-verifier"
+repository = "https://crates.io/crates/zk-psi-verifier"
+commit = "crates.io:zk-psi-verifier@0.1.0"
+proof_system = "halo2"

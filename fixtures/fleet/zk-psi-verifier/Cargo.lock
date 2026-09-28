@@ -1,0 +1,32 @@
+# Halflife fleet fixture for zk-psi-verifier 0.1.0.
+#
+# Versions and checksums are genuine crates.io data. The resolution is
+# DERIVED: each published requirement is resolved to the highest release
+# satisfying it, as Cargo would. This is not the crate's own lockfile.
+#
+# Optional dependencies are included, on the conservative reading that a
+# feature may be enabled. Yanked versions are kept: yanking blocks new
+# resolutions but leaves an existing lockfile pinning them untouched.
+version = 3
+
+[[package]]
+name = "zk-psi-verifier"
+version = "0.1.0"
+dependencies = [
+    "halo2_gadgets",
+    "halo2_proofs",
+]
+
+# declared requirement: ^0.3  (YANKED from crates.io)
+[[package]]
+name = "halo2_gadgets"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73a5e510d58a07d8ed238a5a8a436fe6c2c79e1bb2611f62688bc65007b4e6e7"
+
+# declared requirement: ^0.3
+[[package]]
+name = "halo2_proofs"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5aca1c66059a919227dec97444a11a4350d2f9c820ca48690988f0aa0e81cbf"

@@ -1,0 +1,5 @@
+[subject]
+name = "zkdoc_sdk"
+repository = "https://crates.io/crates/zkdoc_sdk"
+commit = "crates.io:zkdoc_sdk@0.0.1"
+proof_system = "halo2"

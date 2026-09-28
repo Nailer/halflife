@@ -1,0 +1,14 @@
+[package]
+name = "halflife-lineage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Dependency closure resolution and advisory matching"
+
+[dependencies]
+halflife-core = { path = "../halflife-core" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+ureq.workspace = true

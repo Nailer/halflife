@@ -1,0 +1,32 @@
+# Halflife fleet fixture for zkdoc_sdk 0.0.1.
+#
+# Versions and checksums are genuine crates.io data. The resolution is
+# DERIVED: each published requirement is resolved to the highest release
+# satisfying it, as Cargo would. This is not the crate's own lockfile.
+#
+# Optional dependencies are included, on the conservative reading that a
+# feature may be enabled. Yanked versions are kept: yanking blocks new
+# resolutions but leaves an existing lockfile pinning them untouched.
+version = 3
+
+[[package]]
+name = "zkdoc_sdk"
+version = "0.0.1"
+dependencies = [
+    "halo2_gadgets",
+    "halo2_proofs",
+]
+
+# declared requirement: ^0.2.0  (YANKED from crates.io)
+[[package]]
+name = "halo2_gadgets"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85e10bf9924da1754e443641c9e7f9f00483749f8fb837fde696ef6ed6e2f079"
+
+# declared requirement: ^0.2.0
+[[package]]
+name = "halo2_proofs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cff771b9a2445cd2545c9ef26d863c290fbb44ae440c825a20eb7156f67a949a"

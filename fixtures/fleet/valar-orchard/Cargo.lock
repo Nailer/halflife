@@ -1,0 +1,32 @@
+# Halflife fleet fixture for valar-orchard 0.12.0.
+#
+# Versions and checksums are genuine crates.io data. The resolution is
+# DERIVED: each published requirement is resolved to the highest release
+# satisfying it, as Cargo would. This is not the crate's own lockfile.
+#
+# Optional dependencies are included, on the conservative reading that a
+# feature may be enabled. Yanked versions are kept: yanking blocks new
+# resolutions but leaves an existing lockfile pinning them untouched.
+version = 3
+
+[[package]]
+name = "valar-orchard"
+version = "0.12.0"
+dependencies = [
+    "halo2_gadgets",
+    "halo2_proofs",
+]
+
+# declared requirement: ^0.4  (YANKED from crates.io; optional/feature-gated)
+[[package]]
+name = "halo2_gadgets"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45824ce0dd12e91ec0c68ebae2a7ed8ae19b70946624c849add59f1d1a62a143"
+
+# declared requirement: ^0.3  (optional/feature-gated)
+[[package]]
+name = "halo2_proofs"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5aca1c66059a919227dec97444a11a4350d2f9c820ca48690988f0aa0e81cbf"
