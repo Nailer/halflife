@@ -1,0 +1,20 @@
+[package]
+name = "halflife-passport"
+version = "0.1.0"
+edition = "2021"
+description = "On-chain security passport registry and enforcement"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "halflife_passport"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }

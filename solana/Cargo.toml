@@ -1,0 +1,13 @@
+# Separate workspace from the host crates on purpose.
+#
+# Solana's SBF toolchain pins an older cargo than the host crates require, so a
+# shared lockfile forces one side or the other onto incompatible dependency
+# versions. Two workspaces, two lockfiles, no negotiation.
+[workspace]
+resolver = "2"
+members = ["programs/*"]
+
+# A silent arithmetic wrap inside a security decision is exactly the class of
+# bug this project exists to surface. It must abort, not wrap.
+[profile.release]
+overflow-checks = true
