@@ -7,6 +7,7 @@ description = "Registered circuits, their closures, and the reverse dependency i
 
 [dependencies]
 halflife-core = { path = "../halflife-core" }
+halflife-projection = { path = "../halflife-projection" }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true

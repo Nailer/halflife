@@ -117,6 +117,27 @@ impl Default for DisclosureState {
     }
 }
 
+/// Who is asking.
+///
+/// This is a *query* parameter, not a display filter. A public projection must
+/// be computed from authorized evidence only — never built in full and then
+/// filtered, because the difference is observable in counts, timings and error
+/// shapes even when the rows themselves are hidden.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Audience {
+    /// Anyone. Sees only findings whose disclosure state is `PUBLIC`.
+    Public,
+    /// An authorized operator. Sees embargoed findings too.
+    Operator,
+}
+
+impl Audience {
+    pub fn is_public(self) -> bool {
+        self == Audience::Public
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Status
 // ---------------------------------------------------------------------------

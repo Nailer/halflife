@@ -4,6 +4,7 @@ members = [
   "crates/halflife-core",
   "crates/halflife-lineage",
   "crates/halflife-registry",
+  "crates/halflife-projection",
   "crates/halflife-cli",
 ]
 

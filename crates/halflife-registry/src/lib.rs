@@ -449,3 +449,195 @@ mod tests {
         assert_eq!(s.latest_passport(&h).unwrap().unwrap().sequence, 7);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Projection port
+// ---------------------------------------------------------------------------
+
+use halflife_core::Audience;
+use halflife_projection::{Reached, RegistrySource};
+
+/// Disclosure is enforced **in the query**, not after it.
+///
+/// Both statements below carry the authorization predicate, so rows a public
+/// caller may not see are never assembled in the first place. Filtering a
+/// complete result set afterwards would leak through counts and response shape
+/// even with the rows removed.
+///
+/// A circuit with no passport has no disclosure state, and `COALESCE` treats
+/// that as `EMBARGOED` — fail closed, never open.
+impl RegistrySource for Store {
+    fn reached_by(
+        &self,
+        name: &str,
+        version: &str,
+        audience: Audience,
+    ) -> anyhow::Result<Vec<Reached>> {
+        let public_only = i64::from(audience.is_public());
+        let mut stmt = self.conn.prepare(
+            "WITH latest AS (
+                 SELECT circuit_hash, disclosure,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY circuit_hash ORDER BY sequence DESC
+                        ) AS rn
+                 FROM passports
+             )
+             SELECT c.circuit_hash, c.name, c.repository
+             FROM dependencies d
+             JOIN circuits c ON c.circuit_hash = d.circuit_hash
+             LEFT JOIN latest l
+                    ON l.circuit_hash = c.circuit_hash AND l.rn = 1
+             WHERE d.name = ?1 AND d.version = ?2
+               AND (?3 = 0 OR COALESCE(l.disclosure, 'EMBARGOED') = 'PUBLIC')
+             ORDER BY c.name",
+        )?;
+        let base = stmt
+            .query_map(params![name, version, public_only], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let mut out = Vec::with_capacity(base.len());
+        for (circuit_hash, cname, repository) in base {
+            let mut st = self.conn.prepare(
+                "SELECT advisory_id FROM advisory_hits
+                 WHERE circuit_hash = ?1 AND dep_name = ?2 AND dep_version = ?3
+                 ORDER BY advisory_id",
+            )?;
+            let advisories = st
+                .query_map(params![circuit_hash, name, version], |r| r.get(0))?
+                .collect::<Result<Vec<String>, _>>()?;
+            out.push(Reached {
+                circuit_hash,
+                name: cname,
+                repository,
+                advisories,
+            });
+        }
+        Ok(out)
+    }
+
+    fn visible_circuits(&self, audience: Audience) -> anyhow::Result<usize> {
+        let public_only = i64::from(audience.is_public());
+        Ok(self.conn.query_row(
+            "WITH latest AS (
+                 SELECT circuit_hash, disclosure,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY circuit_hash ORDER BY sequence DESC
+                        ) AS rn
+                 FROM passports
+             )
+             SELECT COUNT(*)
+             FROM circuits c
+             LEFT JOIN latest l
+                    ON l.circuit_hash = c.circuit_hash AND l.rn = 1
+             WHERE ?1 = 0 OR COALESCE(l.disclosure, 'EMBARGOED') = 'PUBLIC'",
+            params![public_only],
+            |r| r.get::<_, i64>(0),
+        )? as usize)
+    }
+}
+
+#[cfg(test)]
+mod port_tests {
+    use super::*;
+    use halflife_core::{Dependency, Method, PassportCore, Subject, PASSPORT_VERSION};
+    use halflife_projection::project;
+
+    fn ev(name: &str, dep_ver: &str, advs: Vec<&str>, disclosure: DisclosureState) -> Evidence {
+        let mut e = Evidence {
+            evidence_version: 1,
+            subject: Subject {
+                name: name.into(),
+                repository: format!("https://example.test/{name}"),
+                commit: name.into(),
+                proof_system: "halo2".into(),
+            },
+            capability: Capability::C1,
+            disclosure,
+            methods: vec![Method { id: "m".into(), description: "d".into() }],
+            advisory_source: "test".into(),
+            dependencies: vec![Dependency {
+                name: "halo2_gadgets".into(),
+                version: dep_ver.into(),
+                checksum: None,
+                advisories: advs.into_iter().map(String::from).collect(),
+            }],
+        };
+        e.normalize();
+        e
+    }
+
+    fn sp(e: &Evidence) -> SignedPassport {
+        SignedPassport {
+            core: PassportCore {
+                version: PASSPORT_VERSION,
+                circuit_hash: e.circuit_hash(),
+                issuer: [1u8; 32],
+                sequence: 1,
+                capability: e.capability,
+                status: e.derive_status(),
+                issued_at: 1_000,
+                expires_at: 2_000,
+                evidence_hash: e.hash().unwrap(),
+                advisory_count: e.advisory_count() as u16,
+            },
+            issuer_id: "T".into(),
+            signature: [0u8; 64],
+        }
+    }
+
+    fn seeded() -> Store {
+        let mut s = Store::open_in_memory().unwrap();
+        for e in [
+            ev("pub-affected", "0.4.0", vec!["GHSA-ww9q-8r59-xv46"], DisclosureState::Public),
+            ev("pub-clean", "0.5.0", vec![], DisclosureState::Public),
+            ev("secret-affected", "0.4.0", vec!["GHSA-ww9q-8r59-xv46"], DisclosureState::Embargoed),
+        ] {
+            s.register(&e, &sp(&e), 0).unwrap();
+        }
+        s
+    }
+
+    #[test]
+    fn public_projection_excludes_embargoed_rows_at_the_query() {
+        let s = seeded();
+        let p = project(&s, "halo2_gadgets", "0.4.0", Audience::Public).unwrap();
+        assert_eq!(p.affected.len(), 1);
+        assert_eq!(p.affected[0].name, "pub-affected");
+
+        let o = project(&s, "halo2_gadgets", "0.4.0", Audience::Operator).unwrap();
+        assert_eq!(o.affected.len(), 2);
+    }
+
+    #[test]
+    fn public_counts_never_include_withheld_circuits() {
+        let s = seeded();
+        assert_eq!(s.visible_circuits(Audience::Public).unwrap(), 2);
+        assert_eq!(s.visible_circuits(Audience::Operator).unwrap(), 3);
+    }
+
+    #[test]
+    fn healthy_version_reaches_circuits_without_affecting_them() {
+        let s = seeded();
+        let p = project(&s, "halo2_gadgets", "0.5.0", Audience::Public).unwrap();
+        assert_eq!(p.reached(), 1);
+        assert!(p.is_clear());
+    }
+
+    #[test]
+    fn a_circuit_with_no_passport_fails_closed() {
+        let mut s = Store::open_in_memory().unwrap();
+        let e = ev("orphan", "0.4.0", vec!["GHSA-ww9q-8r59-xv46"], DisclosureState::Public);
+        s.register(&e, &sp(&e), 0).unwrap();
+        s.conn.execute("DELETE FROM passports", []).unwrap();
+        // No disclosure state means no authorization to show it.
+        assert_eq!(s.visible_circuits(Audience::Public).unwrap(), 0);
+        let p = project(&s, "halo2_gadgets", "0.4.0", Audience::Public).unwrap();
+        assert!(p.affected.is_empty());
+    }
+}

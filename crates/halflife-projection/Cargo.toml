@@ -1,0 +1,11 @@
+[package]
+name = "halflife-projection"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Impact projection over the registered lineage graph"
+
+[dependencies]
+halflife-core = { path = "../halflife-core" }
+anyhow.workspace = true
+serde.workspace = true

@@ -9,10 +9,11 @@ mod vectors;
 use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 use halflife_core::{
-    DisclosureState, EffectiveStatus, Evidence, PassportCore, SignedPassport, Status,
-    PASSPORT_VERSION,
+    Audience, DisclosureState, EffectiveStatus, Evidence, PassportCore, SignedPassport,
+    Status, PASSPORT_VERSION,
 };
 use halflife_lineage::{resolve, AdvisorySource};
+use halflife_projection::{project, Impact};
 use halflife_registry::Store;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -52,6 +53,19 @@ enum Cmd {
         common: ScanArgs,
         #[arg(long, default_value = DEFAULT_REGISTRY)]
         registry: PathBuf,
+    },
+    /// What would break if this dependency became unsafe?
+    Impact {
+        /// `name@version`, e.g. halo2_gadgets@0.4.0
+        target: String,
+        #[arg(long, default_value = DEFAULT_REGISTRY)]
+        registry: PathBuf,
+        /// Answer as an authorized operator, seeing embargoed findings too.
+        #[arg(long)]
+        operator: bool,
+        /// Emit JSON instead of a table.
+        #[arg(long)]
+        json: bool,
     },
     /// Inspect the registry.
     Registry {
@@ -167,6 +181,12 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
+        Cmd::Impact {
+            target,
+            registry,
+            operator,
+            json,
+        } => impact(&target, &registry, operator, json),
         Cmd::Registry { op, registry } => match op {
             RegistryOp::List => registry_list(&registry),
             RegistryOp::Deps => registry_deps(&registry),
@@ -277,6 +297,66 @@ fn write_out(out: &Path, evidence: &Evidence, signed: &SignedPassport) -> Result
         out.join("passport.json"),
         serde_json::to_vec_pretty(signed)?,
     )?;
+    Ok(())
+}
+
+fn impact(target: &str, registry: &Path, operator: bool, json: bool) -> Result<()> {
+    let (name, version) = target.rsplit_once('@').ok_or_else(|| {
+        anyhow!("expected name@version, e.g. halo2_gadgets@0.4.0 — got {target}")
+    })?;
+    let audience = if operator {
+        Audience::Operator
+    } else {
+        Audience::Public
+    };
+
+    let store = Store::open(registry)?;
+    let i: Impact = project(&store, name, version, audience)?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&i)?);
+        return Ok(());
+    }
+
+    println!("dependency  {}@{}", i.dependency, i.version);
+    println!("audience    {:?}", i.audience);
+    println!();
+
+    if i.affected.is_empty() {
+        println!("AFFECTED    none");
+    } else {
+        println!("AFFECTED    {}", i.affected.len());
+        for r in &i.affected {
+            println!(
+                "  {:<24} {}  {}",
+                truncate(&r.name, 24),
+                &r.circuit_hash[..12],
+                r.advisories.join(", ")
+            );
+        }
+    }
+    if !i.clean.is_empty() {
+        println!("\nREACHED, CLEAN  {}", i.clean.len());
+        for r in &i.clean {
+            println!("  {:<24} {}", truncate(&r.name, 24), &r.circuit_hash[..12]);
+        }
+    }
+
+    println!(
+        "\nblast radius  {} affected · {} reached clean · {} not reached",
+        i.affected.len(),
+        i.clean.len(),
+        i.not_reached
+    );
+    if !i.advisories.is_empty() {
+        println!("advisories    {}", i.advisories.join(", "));
+    }
+
+    // Non-zero exit on impact, so this is usable as a CI gate without parsing
+    // stdout -- the same reason `verify` exits 2 on a block.
+    if !i.is_clear() {
+        std::process::exit(2);
+    }
     Ok(())
 }
 

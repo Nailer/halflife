@@ -372,6 +372,7 @@ dependencies = [
  "getrandom",
  "halflife-core",
  "halflife-lineage",
+ "halflife-projection",
  "halflife-registry",
  "hex",
  "serde",
@@ -404,11 +405,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "halflife-projection"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "halflife-core",
+ "serde",
+]
+
+[[package]]
 name = "halflife-registry"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "halflife-core",
+ "halflife-projection",
  "hex",
  "rusqlite",
  "serde",

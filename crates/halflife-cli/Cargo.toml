@@ -12,6 +12,7 @@ path = "src/main.rs"
 halflife-core = { path = "../halflife-core" }
 halflife-lineage = { path = "../halflife-lineage" }
 halflife-registry = { path = "../halflife-registry" }
+halflife-projection = { path = "../halflife-projection" }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
