@@ -5,3 +5,7 @@ node_modules/
 /out
 issuer.json
 halflife.db
+solana/deploy-keypair.json
+evm/lib/
+evm/out/
+evm/cache/
