@@ -65,10 +65,10 @@ pre-approved: the decision depends on a measurement that does not exist yet.
 
 ## Stage 5 — Propagation
 
-- [ ] **B5.1** Destination registry (EVM)
+- [x] **B5.1** Destination registry (EVM)
 - [ ] **B5.2** Origin dispatch from Solana on state change
 - [ ] **B5.3** Aggregation ISM, never the bare default
-- [ ] **B5.4** Destination expiry and sequence high-water mark
+- [x] **B5.4** Destination expiry and sequence high-water mark
 
 **Gate F** — the slow path works. Kill the relayer; the consumer still blocks.
 
