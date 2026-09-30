@@ -58,7 +58,7 @@ disclosure obligation under Gate A.
 - [x] **B4.2** `publish` / `supersede` / `revoke` with ed25519 verification
 - [x] **B4.3** Reference consumer that halts
 - [x] **B4.4** CU benchmark, reproducible from a committed script
-- [ ] **B4.5** Devnet deployment
+- [x] **B4.5** Devnet deployment
 
 **Gate E** — does the number support the thesis? Hard gate. Cannot be
 pre-approved: the decision depends on a measurement that does not exist yet.
