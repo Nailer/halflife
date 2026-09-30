@@ -1,4 +1,9 @@
-/target
+# Build artifacts. `target/` not `/target` -- the leading slash only
+# matched the repository root, which let 680MB of solana/target into the
+# history and made the first push fail.
+target/
+out/
+cache/
 node_modules/
 .DS_Store
 *.log
