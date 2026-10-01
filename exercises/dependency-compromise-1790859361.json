@@ -1,0 +1,64 @@
+{
+  "exercise_id": "dependency-compromise-1790859361",
+  "scenario": "DEPENDENCY_COMPROMISE",
+  "cluster": "devnet",
+  "started_at": 1790859361,
+  "passport_program": "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2",
+  "consumer_program": "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW",
+  "circuit_hash": "dc64e30744627d46ae381460325d588eedd6ced15416f41517013d934a8d0531",
+  "events": [
+    {
+      "seq": 1,
+      "kind": "FINDING_REGISTERED",
+      "observed_at": 1790859363,
+      "evidence": {
+        "type": "SOLANA_TRANSACTION",
+        "signature": "3rSZ94UC4i853PyZ39vyN14KyFurQkNSyUhhSnoZ3Nz9FfJABaCMJuyNKfHMcCqRAgGHQyujNLmWgFGQ7TPLrQy5",
+        "slot": 506279465
+      },
+      "detail": "exercise issuer registered"
+    },
+    {
+      "seq": 2,
+      "kind": "IMPACT_PROJECTED",
+      "observed_at": 1790859363,
+      "evidence": {
+        "type": "LOCAL",
+        "note": "halo2_gadgets@0.4.0 matches GHSA-ww9q-8r59-xv46 in this closure"
+      },
+      "detail": "affected circuit identified from the registry"
+    },
+    {
+      "seq": 3,
+      "kind": "SOLANA_COMMITTED",
+      "observed_at": 1790859365,
+      "evidence": {
+        "type": "SOLANA_TRANSACTION",
+        "signature": "53GxCVEtmTj7a5S3F7Za8aH4NaxB91t1FxnuAozX1edHqMmBY3cYfMEDcPm4teYFD6e19hUgBuXxEgW5MrAzTZ5c",
+        "slot": 506279471
+      },
+      "detail": "baseline VALID passport, sequence 1"
+    },
+    {
+      "seq": 4,
+      "kind": "PASSPORT_INVALIDATED",
+      "observed_at": 1790859367,
+      "evidence": {
+        "type": "SOLANA_TRANSACTION",
+        "signature": "3hXgGNnsDp1e5DwXP1ZTk4ppLSXNURgQugZ72AX9ATChWoLPydKnrsKjcXdjF1oX8DqW1PHahaPtVX4uPc8XmsEj",
+        "slot": 506279479
+      },
+      "detail": "INVALID published, sequence 2"
+    },
+    {
+      "seq": 5,
+      "kind": "CONSUMER_BLOCKED",
+      "observed_at": 1790859367,
+      "evidence": {
+        "type": "LOCAL",
+        "note": "InstructionError(0, Custom(6003))"
+      },
+      "detail": "consumer refused to proceed"
+    }
+  ]
+}

@@ -7,6 +7,7 @@ members = [
   "crates/halflife-projection",
   "crates/halflife-cli",
   "crates/halflife-bench",
+  "crates/halflife-exercise",
 ]
 
 [workspace.package]

@@ -1,0 +1,52 @@
+{
+  "exercise_id": "relayer-censorship-1790859373",
+  "scenario": "RELAYER_CENSORSHIP",
+  "cluster": "devnet",
+  "started_at": 1790859373,
+  "passport_program": "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2",
+  "consumer_program": "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW",
+  "circuit_hash": "e8d694d442b6a4b7209f3225fce8ba9bdd93202c5f27bd1a0f6b12044be34bca",
+  "events": [
+    {
+      "seq": 1,
+      "kind": "SOLANA_COMMITTED",
+      "observed_at": 1790859375,
+      "evidence": {
+        "type": "SOLANA_TRANSACTION",
+        "signature": "62kchqmCWrSNytTNfD9Pdgsq5mxC4mcCCVPw1LxaKhEBmDVZqYFG16fTUj6u3pYR5eee6WnjAT3ReK2EQCSb1XDL",
+        "slot": 506279516
+      },
+      "detail": "VALID passport, expires at 1790859414"
+    },
+    {
+      "seq": 2,
+      "kind": "RELAYER_STOPPED",
+      "observed_at": 1790859375,
+      "evidence": {
+        "type": "LOCAL",
+        "note": "no further transaction is submitted for this circuit"
+      },
+      "detail": "delivery deliberately stopped"
+    },
+    {
+      "seq": 3,
+      "kind": "PASSPORT_EXPIRED",
+      "observed_at": 1790859416,
+      "evidence": {
+        "type": "LOCAL",
+        "note": "expires_at 1790859414 passed"
+      },
+      "detail": "passport aged out with no update delivered"
+    },
+    {
+      "seq": 4,
+      "kind": "CONSUMER_BLOCKED",
+      "observed_at": 1790859416,
+      "evidence": {
+        "type": "LOCAL",
+        "note": "InstructionError(0, Custom(6002))"
+      },
+      "detail": "consumer blocked on staleness, not on any published finding"
+    }
+  ]
+}

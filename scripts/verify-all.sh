@@ -145,6 +145,30 @@ else
   skip "forge-std missing — run: cd evm && forge install foundry-rs/forge-std --no-git"
 fi
 
+# ------------------------------------------------------ 8b. fire drill
+step "8b. Fire Drill — recorded exercises"
+latest_dep=$(ls -t exercises/dependency-compromise-*.json 2>/dev/null | head -1)
+latest_cen=$(ls -t exercises/relayer-censorship-*.json 2>/dev/null | head -1)
+if [ -n "$latest_dep" ] && [ -n "$latest_cen" ]; then
+  run "dependency-compromise record verifies against devnet" \
+      "./target/release/halflife-exercise verify $latest_dep"
+  run "relayer-censorship record verifies against devnet" \
+      "./target/release/halflife-exercise verify $latest_cen"
+  # The censorship record must show the consumer blocking without any
+  # invalidation having been published -- exactly one on-chain write.
+  WRITES=$(python3 -c "
+import json,sys
+d=json.load(open('$latest_cen'))
+print(sum(1 for e in d['events'] if e['evidence']['type']=='SOLANA_TRANSACTION'))")
+  if [ "${WRITES:-0}" -eq 1 ]; then
+    ok "censorship: consumer blocked after exactly 1 on-chain write (the baseline)"
+  else
+    bad "censorship: expected 1 on-chain write, record shows ${WRITES}"
+  fi
+else
+  skip "no exercise records — run: halflife-exercise run dependency-compromise"
+fi
+
 # -------------------------------------------------------- 9. live devnet
 step "9. Devnet deployments"
 for pair in "halflife_passport:CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2" \
