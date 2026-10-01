@@ -66,7 +66,7 @@ pre-approved: the decision depends on a measurement that does not exist yet.
 ## Stage 5 — Propagation
 
 - [x] **B5.1** Destination registry (EVM)
-- [ ] **B5.2** Origin dispatch from Solana on state change
+- [x] **B5.2** Origin dispatch from Solana on state change
 - [ ] **B5.3** Aggregation ISM, never the bare default
 - [x] **B5.4** Destination expiry and sequence high-water mark
 
