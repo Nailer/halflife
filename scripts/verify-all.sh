@@ -121,6 +121,7 @@ if [ -f solana/target/deploy/halflife_passport.so ]; then
     grep -qE "PassportInvalid"        /tmp/hl.bench && ok "kill switch fires (PassportInvalid)"        || bad "kill switch"
     grep -qE "SequenceNotIncreasing"  /tmp/hl.bench && ok "replay refused (SequenceNotIncreasing)"     || bad "replay guard"
     grep -qE "PassportStale"          /tmp/hl.bench && ok "FAIL-SAFE on-chain: stale blocks, nothing published" || bad "on-chain fail-safe"
+    grep -qE "round trip preserves"   /tmp/hl.bench && ok "on-chain re-encoding reproduces the signed bytes"    || bad "round-trip integrity"
   else
     bad "benchmark"; tail -12 /tmp/hl.bench | sed 's/^/       /'
   fi

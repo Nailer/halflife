@@ -31,3 +31,34 @@ take on trust, and we would rather say so than imply otherwise.
 
 Not yet deployed. The contracts and tests are in `evm/`; a live deployment
 requires a Hyperlane mailbox on the target chain and is tracked as B5.2/B5.3.
+
+## Hyperlane (Sealevel)
+
+Addresses taken from `hyperlane-monorepo/rust/sealevel/environments/`, verified
+deployed on devnet.
+
+| | Solana devnet |
+|---|---|
+| Mailbox | `5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54` |
+| IGP program | `9N7WmRUVL6b8agkS2GMephafHpwMWKAKAyjoNyW3j4Fi` |
+| Multisig ISM (message id) | `4Q1eZAovdqhihCCZyabX4u5rCJPq5R8YgyKVDCdjzTNV` |
+| Validator announce | `7TfjfmTCuZVSq9mour8obQz2pXGNiEz29EqEEDnoexQ9` |
+
+Solana testnet (`solanatestnet`) mailbox, for reference:
+`75HBBLae3ddeneJVrZeyrDfv6vb7SMC3aCpBucSXS5aR`
+
+### Why the dispatch is a CPI and not an off-chain relay
+
+Hyperlane's mailbox requires the dispatching program to sign with a PDA derived
+from `[b"hyperlane_dispatcher", b"-", b"dispatch_authority"]` under the declared
+`sender`. From the mailbox source:
+
+> a program uses a dispatch authority PDA to sign the CPI on its behalf.
+> Instruction processing logic prevents a program from specifying any message
+> sender it wants by requiring the relevant dispatch authority to sign the CPI.
+
+That is precisely why the destination's `originSender` check carries weight. If
+an off-chain process dispatched instead, the sender would be that process and the
+destination would be trusting it rather than the registry — the trust chain in
+`evm/README.md` would break at its first link. Anyone may pay to relay a
+passport; nobody may invent what is relayed.

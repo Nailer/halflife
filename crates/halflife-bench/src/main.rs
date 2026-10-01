@@ -317,6 +317,41 @@ fn main() -> Result<()> {
     println!("  consumer BLOCKED (stale)   {stale_cu:>7} CU   {}", error_name(&stale_err));
     println!("                                     no invalidation was published");
 
+    // ---- the dispatch body must be the bytes that were signed -------------
+    //
+    // The program re-encodes the stored passport to 125 bytes before handing it
+    // to Hyperlane. If that re-encoding drifts from the encoder that produced
+    // the signature, the destination decodes something nobody ever signed --
+    // silently, because the destination cannot verify ed25519. So the round
+    // trip through the on-chain account is checked explicitly.
+    let stored = b
+        .svm
+        .get_account(&passport_pda)
+        .ok_or_else(|| anyhow!("passport account missing"))?;
+    // Anchor discriminator (8) then the fields in declaration order, which is
+    // the canonical layout with a `bump` appended.
+    let d = &stored.data[8..];
+    let mut rebuilt = Vec::with_capacity(125);
+    rebuilt.push(1u8);
+    rebuilt.extend_from_slice(&d[0..32]);    // circuit_hash
+    rebuilt.extend_from_slice(&d[32..64]);   // issuer
+    rebuilt.extend_from_slice(&d[64..72]);   // sequence
+    rebuilt.push(d[72]);                     // capability
+    rebuilt.push(d[73]);                     // status
+    rebuilt.extend_from_slice(&d[74..82]);   // issued_at
+    rebuilt.extend_from_slice(&d[82..90]);   // expires_at
+    rebuilt.extend_from_slice(&d[90..122]);  // evidence_hash
+    rebuilt.extend_from_slice(&d[122..124]); // advisory_count
+
+    if rebuilt[..] != fresh.canonical_bytes()[..] {
+        return Err(anyhow!(
+            "on-chain round trip altered the signed bytes\n  signed:  {}\n  rebuilt: {}",
+            hex::encode(fresh.canonical_bytes()),
+            hex::encode(&rebuilt)
+        ));
+    }
+    println!("  round trip preserves 125 bytes      stored == signed");
+
     println!();
     println!("Measured with litesvm against the SBF artifacts from `anchor build`.");
     println!("Reproduce: cargo run --release -p halflife-bench");

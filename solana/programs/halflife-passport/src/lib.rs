@@ -21,6 +21,7 @@
 //! serialization, no re-encoding, no second format to keep in step.
 
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::instruction::AccountMeta;
 use anchor_lang::solana_program::sysvar::instructions::{
     load_instruction_at_checked, ID as INSTRUCTIONS_ID,
 };
@@ -28,6 +29,27 @@ use anchor_lang::solana_program::sysvar::instructions::{
 /// The Ed25519 sigverify precompile. Declared here rather than imported so the
 /// check does not move if the solana-program module layout changes.
 pub const ED25519_PROGRAM_ID: Pubkey = pubkey!("Ed25519SigVerify111111111111111111111111111");
+
+/// SPL Noop, required by Hyperlane's mailbox for message logging.
+pub const SPL_NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
+
+/// Borsh discriminant of `Instruction::OutboxDispatch` in Hyperlane's mailbox
+/// instruction enum: Init(0), InboxProcess(1), InboxSetDefaultIsm(2),
+/// InboxGetRecipientIsm(3), OutboxDispatch(4).
+pub const HYPERLANE_OUTBOX_DISPATCH: u8 = 4;
+
+/// Seeds for the PDA that signs a dispatch on this program's behalf.
+///
+/// Hyperlane requires this and does not infer it: the mailbox checks that the
+/// signer is exactly `find_program_address(dispatch_authority_seeds, sender)`,
+/// which is what stops any program from dispatching as any sender it likes. It
+/// is also what makes the destination's `originSender` check meaningful — only
+/// this program can speak as this program.
+pub const DISPATCH_AUTHORITY_SEEDS: &[&[u8]] =
+    &[b"hyperlane_dispatcher", b"-", b"dispatch_authority"];
+
+/// Seeds for Hyperlane's outbox PDA, owned by the mailbox program.
+pub const MAILBOX_OUTBOX_SEEDS: &[&[u8]] = &[b"hyperlane", b"-", b"outbox"];
 
 declare_id!("CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2");
 
@@ -138,6 +160,105 @@ pub mod halflife_passport {
             sequence: parsed.sequence,
             status: parsed.status,
             expires_at: parsed.expires_at,
+        });
+        Ok(())
+    }
+
+    /// Configure where passport state is propagated for one destination domain.
+    pub fn set_route(
+        ctx: Context<SetRoute>,
+        destination_domain: u32,
+        recipient: [u8; 32],
+        mailbox: Pubkey,
+    ) -> Result<()> {
+        let route = &mut ctx.accounts.route;
+        route.destination_domain = destination_domain;
+        route.recipient = recipient;
+        route.mailbox = mailbox;
+        route.authority = ctx.accounts.authority.key();
+        route.bump = ctx.bumps.route;
+        emit!(RouteSet {
+            destination_domain,
+            recipient,
+            mailbox
+        });
+        Ok(())
+    }
+
+    /// Propagate a passport to a destination chain over Hyperlane.
+    ///
+    /// The message body is the canonical 125 bytes, unchanged — the same
+    /// serialization that was signed off-chain, stored here, and decoded by the
+    /// destination. One format across three runtimes.
+    ///
+    /// Note what is *not* re-derived: the passport is read from this program's
+    /// own account, so a caller cannot propagate a passport the registry never
+    /// accepted. Anyone may pay to relay; nobody may invent what is relayed.
+    pub fn dispatch(ctx: Context<Dispatch>) -> Result<()> {
+        let p = &ctx.accounts.passport;
+        let route = &ctx.accounts.route;
+
+        require_keys_eq!(
+            ctx.accounts.mailbox_program.key(),
+            route.mailbox,
+            HalflifeError::MailboxMismatch
+        );
+
+        let body = p.canonical_bytes();
+
+        // Borsh: variant tag, then sender, destination_domain, recipient, and a
+        // length-prefixed body. Encoded by hand so this program carries no
+        // dependency on the Hyperlane crates, which pin an incompatible
+        // solana-program major version.
+        let mut data = Vec::with_capacity(1 + 32 + 4 + 32 + 4 + body.len());
+        data.push(HYPERLANE_OUTBOX_DISPATCH);
+        data.extend_from_slice(crate::ID.as_ref());
+        data.extend_from_slice(&route.destination_domain.to_le_bytes());
+        data.extend_from_slice(&route.recipient);
+        data.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        data.extend_from_slice(&body);
+
+        let accounts = vec![
+            AccountMeta::new(ctx.accounts.outbox.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.dispatch_authority.key(), true),
+            AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false),
+            AccountMeta::new_readonly(SPL_NOOP_PROGRAM_ID, false),
+            AccountMeta::new(ctx.accounts.payer.key(), true),
+            AccountMeta::new_readonly(ctx.accounts.unique_message.key(), true),
+            AccountMeta::new(ctx.accounts.dispatched_message.key(), false),
+        ];
+
+        let bump = ctx.bumps.dispatch_authority;
+        let seeds: &[&[u8]] = &[
+            DISPATCH_AUTHORITY_SEEDS[0],
+            DISPATCH_AUTHORITY_SEEDS[1],
+            DISPATCH_AUTHORITY_SEEDS[2],
+            &[bump],
+        ];
+
+        anchor_lang::solana_program::program::invoke_signed(
+            &anchor_lang::solana_program::instruction::Instruction {
+                program_id: route.mailbox,
+                accounts,
+                data,
+            },
+            &[
+                ctx.accounts.outbox.to_account_info(),
+                ctx.accounts.dispatch_authority.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+                ctx.accounts.spl_noop.to_account_info(),
+                ctx.accounts.payer.to_account_info(),
+                ctx.accounts.unique_message.to_account_info(),
+                ctx.accounts.dispatched_message.to_account_info(),
+            ],
+            &[seeds],
+        )?;
+
+        emit!(PassportDispatched {
+            circuit_hash: p.circuit_hash,
+            issuer: p.issuer,
+            sequence: p.sequence,
+            destination_domain: route.destination_domain,
         });
         Ok(())
     }
@@ -274,6 +395,26 @@ pub struct Passport {
 impl Passport {
     pub const LEN: usize = 8 + CORE_LEN + 1;
 
+    /// Re-encode to the canonical 125 bytes.
+    ///
+    /// The destination receives exactly what was signed, so the bytes must be
+    /// rebuilt in the same layout rather than re-serialized in some convenient
+    /// local form. Field order and widths follow `docs/passport-spec.md`.
+    pub fn canonical_bytes(&self) -> [u8; CORE_LEN] {
+        let mut out = [0u8; CORE_LEN];
+        out[0] = 1;
+        out[1..33].copy_from_slice(&self.circuit_hash);
+        out[33..65].copy_from_slice(&self.issuer);
+        out[65..73].copy_from_slice(&self.sequence.to_le_bytes());
+        out[73] = self.capability;
+        out[74] = self.status;
+        out[75..83].copy_from_slice(&self.issued_at.to_le_bytes());
+        out[83..91].copy_from_slice(&self.expires_at.to_le_bytes());
+        out[91..123].copy_from_slice(&self.evidence_hash);
+        out[123..125].copy_from_slice(&self.advisory_count.to_le_bytes());
+        out
+    }
+
     /// Resolve the status a consumer should act on.
     ///
     /// `INVALID` outranks the clock; an expired `VALID` degrades to stale and
@@ -349,7 +490,87 @@ pub struct Publish<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[account]
+pub struct DispatchRoute {
+    pub destination_domain: u32,
+    /// The destination registry, left-padded to 32 bytes as Hyperlane expects.
+    pub recipient: [u8; 32],
+    /// The Hyperlane mailbox on this chain.
+    pub mailbox: Pubkey,
+    pub authority: Pubkey,
+    pub bump: u8,
+}
+
+impl DispatchRoute {
+    pub const LEN: usize = 8 + 4 + 32 + 32 + 32 + 1;
+}
+
+#[derive(Accounts)]
+#[instruction(destination_domain: u32)]
+pub struct SetRoute<'info> {
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = DispatchRoute::LEN,
+        seeds = [b"route", destination_domain.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub route: Account<'info, DispatchRoute>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Dispatch<'info> {
+    /// Read-only: the passport being propagated must already exist in this
+    /// registry. A caller cannot relay a passport that was never accepted.
+    pub passport: Account<'info, Passport>,
+    #[account(
+        seeds = [b"route", route.destination_domain.to_le_bytes().as_ref()],
+        bump = route.bump
+    )]
+    pub route: Account<'info, DispatchRoute>,
+    /// CHECK: Hyperlane's outbox PDA, validated by the mailbox itself.
+    #[account(mut)]
+    pub outbox: UncheckedAccount<'info>,
+    /// The PDA Hyperlane requires this program to sign with. Deriving it here
+    /// and signing via `invoke_signed` is what proves the sender is us.
+    /// CHECK: seeds-constrained, never read or written.
+    #[account(seeds = [b"hyperlane_dispatcher", b"-", b"dispatch_authority"], bump)]
+    pub dispatch_authority: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    /// A fresh keypair per message; Hyperlane derives the dispatched-message
+    /// PDA from it to enforce uniqueness.
+    pub unique_message: Signer<'info>,
+    /// CHECK: PDA derived by the mailbox from `unique_message`.
+    #[account(mut)]
+    pub dispatched_message: UncheckedAccount<'info>,
+    /// CHECK: checked against `route.mailbox` before the CPI.
+    pub mailbox_program: UncheckedAccount<'info>,
+    /// CHECK: address-constrained to SPL Noop.
+    #[account(address = SPL_NOOP_PROGRAM_ID)]
+    pub spl_noop: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 // ---------------------------------------------------------------------------
+
+#[event]
+pub struct RouteSet {
+    pub destination_domain: u32,
+    pub recipient: [u8; 32],
+    pub mailbox: Pubkey,
+}
+
+#[event]
+pub struct PassportDispatched {
+    pub circuit_hash: [u8; 32],
+    pub issuer: [u8; 32],
+    pub sequence: u64,
+    pub destination_domain: u32,
+}
 
 #[event]
 pub struct IssuerRegistered {
@@ -404,4 +625,6 @@ pub enum HalflifeError {
     SequenceNotIncreasing,
     #[msg("circuit hash does not match the existing passport account")]
     CircuitMismatch,
+    #[msg("supplied mailbox program does not match the configured route")]
+    MailboxMismatch,
 }
