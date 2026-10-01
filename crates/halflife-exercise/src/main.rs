@@ -479,7 +479,22 @@ fn verify(record: &Path, rpc_url: &str) -> Result<()> {
         match &e.evidence {
             Evidence::SolanaTransaction { signature, slot } => {
                 let sig = solana_sdk::signature::Signature::from_str(signature)?;
-                match rpc.get_signature_status(&sig)? {
+                // History search is required, not optional: the default status
+                // lookup only covers a recent window, so a record older than a
+                // few minutes would report "not found" and `verify` would be
+                // useless for precisely the case it exists for -- checking an
+                // exercise someone else ran, later.
+                let status = rpc
+                    .get_signature_statuses_with_history(&[sig])?
+                    .value
+                    .into_iter()
+                    .next()
+                    .flatten()
+                    .map(|s| match s.err {
+                        Some(e) => Err(e),
+                        None => Ok(()),
+                    });
+                match status {
                     Some(Ok(())) => {
                         println!("  \x1b[32m✓\x1b[0m {:>2}. {:<22} on chain, recorded slot {slot}", e.seq, format!("{:?}", e.kind));
                         checked += 1;
