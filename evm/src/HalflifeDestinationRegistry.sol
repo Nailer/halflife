@@ -2,6 +2,10 @@
 pragma solidity ^0.8.24;
 
 import {IMessageRecipient} from "./IMessageRecipient.sol";
+import {
+    IInterchainSecurityModule,
+    ISpecifiesInterchainSecurityModule
+} from "./IInterchainSecurityModule.sol";
 
 /// @title Halflife destination registry
 /// @notice Receives passport state from the canonical Solana registry over
@@ -30,7 +34,24 @@ import {IMessageRecipient} from "./IMessageRecipient.sol";
 /// update ever arrives, the stored passport simply ages out and consumers
 /// block. Rejecting expired messages on receipt would instead leave the last
 /// good state in place, which is the failure this design exists to prevent.
-contract HalflifeDestinationRegistry is IMessageRecipient {
+/// @dev ## Security module, chosen explicitly
+///
+/// A Hyperlane recipient that returns `address(0)` from
+/// `interchainSecurityModule()` inherits the mailbox default. This contract
+/// cannot do that: the constructor rejects a zero ISM, and so does the setter.
+///
+/// It also rejects `Types.NULL` — the module that verifies nothing and trusts
+/// the relayer outright. At the time of the $292M KelpDAO loss, 47% of deployed
+/// integrations on a comparable system were running a single-verifier
+/// configuration. Nobody chose that on purpose; they accepted a default. The
+/// defence is to make the weak configuration unrepresentable rather than
+/// discouraged, which is why this is a `revert` and not a comment.
+///
+/// What this contract does *not* do is verify the ISM is strong enough. It can
+/// reject the obviously empty choice; it cannot judge a 1-of-1 multisig from a
+/// 7-of-10. That remains an operator decision, and `docs/ism-config.md` records
+/// the one this deployment uses.
+contract HalflifeDestinationRegistry is IMessageRecipient, ISpecifiesInterchainSecurityModule {
     /// Must match `halflife_core::PASSPORT_CORE_LEN`.
     uint256 internal constant CORE_LEN = 125;
 
@@ -66,6 +87,10 @@ contract HalflifeDestinationRegistry is IMessageRecipient {
     /// keccak(circuitHash, issuer) => latest passport
     mapping(bytes32 => Passport) private _passports;
 
+    /// The security module the mailbox must satisfy before calling `handle`.
+    IInterchainSecurityModule public ism;
+    address public owner;
+
     event PassportReceived(
         bytes32 indexed circuitHash, bytes32 indexed issuer, uint64 sequence, uint8 status
     );
@@ -78,11 +103,56 @@ contract HalflifeDestinationRegistry is IMessageRecipient {
     error UnknownStatus(uint8 status);
     /// Replay, including from a chain that has not seen the newer passport.
     error SequenceNotIncreasing(uint64 incoming, uint64 stored);
+    /// Refusing `address(0)` is the whole point: it would silently inherit the
+    /// mailbox default.
+    error IsmRequired();
+    /// `Types.NULL` verifies nothing.
+    error NullIsmRefused();
+    error NotOwner();
 
-    constructor(address _mailbox, uint32 _originDomain, bytes32 _originSender) {
+    event IsmChanged(address indexed previous, address indexed current);
+
+    constructor(
+        address _mailbox,
+        uint32 _originDomain,
+        bytes32 _originSender,
+        IInterchainSecurityModule _ism
+    ) {
         mailbox = _mailbox;
         originDomain = _originDomain;
         originSender = _originSender;
+        owner = msg.sender;
+        _setIsm(_ism);
+    }
+
+    /// @notice Replace the security module.
+    /// @dev Same guards as the constructor. There is no path to the default.
+    function setIsm(IInterchainSecurityModule _ism) external {
+        if (msg.sender != owner) revert NotOwner();
+        _setIsm(_ism);
+    }
+
+    function interchainSecurityModule()
+        external
+        view
+        override
+        returns (IInterchainSecurityModule)
+    {
+        return ism;
+    }
+
+    /// @notice The configured module's self-reported type, for inspection.
+    function moduleTypeOf() external view returns (uint8) {
+        return ism.moduleType();
+    }
+
+    function _setIsm(IInterchainSecurityModule _ism) internal {
+        if (address(_ism) == address(0)) revert IsmRequired();
+        if (_ism.moduleType() == uint8(IInterchainSecurityModule.Types.NULL)) {
+            revert NullIsmRefused();
+        }
+        emit IsmChanged(address(ism), address(_ism));
+        ism = _ism;
     }
 
     function key(bytes32 circuitHash, bytes32 issuer) public pure returns (bytes32) {

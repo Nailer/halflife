@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {HalflifeDestinationRegistry as Registry} from "../src/HalflifeDestinationRegistry.sol";
+import {IInterchainSecurityModule as IIsm} from "../src/IInterchainSecurityModule.sol";
 
 /// @notice Cross-implementation conformance: decode bytes produced by the Rust
 ///         encoder, not by this test.
@@ -32,8 +33,13 @@ contract ConformanceTest is Test {
     bytes32 internal constant VEC_ISSUER =
         0xd75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a;
 
+    /// A non-null ISM, because the registry refuses to exist without one.
+    function _aggIsm() internal returns (IIsm) {
+        return IIsm(address(new TestAggIsm()));
+    }
+
     function setUp() public {
-        registry = new Registry(MAILBOX, ORIGIN, SENDER);
+        registry = new Registry(MAILBOX, ORIGIN, SENDER, _aggIsm());
     }
 
     function _deliver(bytes memory core) internal {
@@ -105,5 +111,16 @@ contract ConformanceTest is Test {
             uint256(registry.statusNow(VEC_CIRCUIT, VEC_ISSUER)),
             uint256(Registry.Effective.Valid)
         );
+    }
+}
+
+/// Minimal AGGREGATION-type module for tests.
+contract TestAggIsm is IIsm {
+    function moduleType() external pure returns (uint8) {
+        return uint8(IIsm.Types.AGGREGATION);
+    }
+
+    function verify(bytes calldata, bytes calldata) external pure returns (bool) {
+        return true;
     }
 }

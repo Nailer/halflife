@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {HalflifeDestinationRegistry as Registry} from "../src/HalflifeDestinationRegistry.sol";
+import {IInterchainSecurityModule as IIsm} from "../src/IInterchainSecurityModule.sol";
 import {HalflifeConsumer} from "../src/HalflifeConsumer.sol";
 
 contract DestinationTest is Test {
@@ -15,8 +16,13 @@ contract DestinationTest is Test {
     bytes32 internal constant CIRCUIT = bytes32(uint256(0x11));
     bytes32 internal constant ISSUER = bytes32(uint256(0x22));
 
+    /// A non-null ISM, because the registry refuses to exist without one.
+    function _aggIsm() internal returns (IIsm) {
+        return IIsm(address(new TestAggIsm()));
+    }
+
     function setUp() public {
-        registry = new Registry(MAILBOX, ORIGIN, SENDER);
+        registry = new Registry(MAILBOX, ORIGIN, SENDER, _aggIsm());
         consumer = new HalflifeConsumer(registry, CIRCUIT, ISSUER, 1);
         vm.warp(1_700_000_000);
     }
@@ -185,5 +191,16 @@ contract DestinationTest is Test {
         vm.prank(MAILBOX);
         vm.expectRevert(abi.encodeWithSelector(Registry.UnknownStatus.selector, uint8(9)));
         registry.handle(ORIGIN, SENDER, _core(1, 9, 1_700_000_000, 1_700_086_400, 1));
+    }
+}
+
+/// Minimal AGGREGATION-type module for tests.
+contract TestAggIsm is IIsm {
+    function moduleType() external pure returns (uint8) {
+        return uint8(IIsm.Types.AGGREGATION);
+    }
+
+    function verify(bytes calldata, bytes calldata) external pure returns (bool) {
+        return true;
     }
 }
