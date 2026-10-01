@@ -74,10 +74,10 @@ pre-approved: the decision depends on a measurement that does not exist yet.
 
 ## Stage 6 — Fire Drill
 
-- [ ] **B6.1** Event ledger with transaction signatures and message ids
-- [ ] **B6.2** Scenario: dependency compromise
-- [ ] **B6.3** Scenario: relayer censorship
-- [ ] **B6.4** `exercise verify` — third-party reconstructable
+- [x] **B6.1** Event ledger with transaction signatures and message ids
+- [x] **B6.2** Scenario: dependency compromise
+- [x] **B6.3** Scenario: relayer censorship
+- [x] **B6.4** `exercise verify` — third-party reconstructable
 
 **Gate G** — measured, not simulated.
 
