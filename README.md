@@ -24,6 +24,28 @@ the tool claims capability **C1** — nothing above it.
 - [ ] Hyperlane propagation
 - [ ] Constraint analysis (C2+)
 
+## Verify everything
+
+One command exercises every layer and fails loudly. Every figure it prints is
+measured during the run, not quoted from elsewhere.
+
+```bash
+./scripts/verify-all.sh
+```
+
+```
+26 passed   0 failed   0 skipped
+```
+
+It covers: the wire format across three independent implementations plus a
+tampered-vector negative control; passport issuance, signature and evidence
+binding; forged-status and swapped-evidence rejection; the fail-safe on expiry;
+the registry and reverse index over the real fleet; projection discriminating a
+vulnerable dependency from a healthy one; the embargo hiding a circuit from
+public view; the measured on-chain check cost; the kill switch, replay guard and
+on-chain fail-safe; the EVM destination including the cross-chain fail-safe; and
+the live devnet deployments.
+
 ## Quickstart
 
 ```bash
