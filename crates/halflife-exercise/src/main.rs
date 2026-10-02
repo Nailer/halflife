@@ -63,6 +63,16 @@ enum Cmd {
         #[arg(long, default_value_t = 45)]
         ttl: i64,
     },
+    /// Print the canonical 125 bytes of a passport as it exists on chain.
+    ///
+    /// Used to drive the destination chain with bytes that genuinely came from
+    /// the deployed Solana registry, rather than bytes a test produced.
+    Fetch {
+        /// Circuit hash, hex. Omit to use the most recent exercise's circuit.
+        circuit: Option<String>,
+        #[arg(long, default_value = DEVNET)]
+        rpc: String,
+    },
     /// Re-check a recorded exercise against the cluster.
     Verify {
         record: PathBuf,
@@ -283,6 +293,7 @@ fn main() -> Result<()> {
             println!("verify  halflife-exercise verify {}", p.display());
             Ok(())
         }
+        Cmd::Fetch { circuit, rpc } => fetch(circuit.as_deref(), &rpc),
         Cmd::Verify { record, rpc } => verify(&record, &rpc),
     }
 }
@@ -463,6 +474,66 @@ fn report(ex: &Exercise) {
         ex.verifiable_count(),
         ex.events.len()
     );
+}
+
+/// Read a passport account and rebuild its canonical bytes.
+fn fetch(circuit: Option<&str>, rpc_url: &str) -> Result<()> {
+    let ctx = Ctx::new(rpc_url, Path::new("solana/deploy-keypair.json"))?;
+
+    let hash: [u8; 32] = match circuit {
+        Some(h) => hex::decode(h)
+            .context("circuit hash is not hex")?
+            .try_into()
+            .map_err(|_| anyhow!("circuit hash must be 32 bytes"))?,
+        None => {
+            // Fall back to the newest exercise record, so the common case needs
+            // no arguments.
+            let mut files: Vec<_> = std::fs::read_dir("exercises")
+                .context("no exercises/ directory and no circuit given")?
+                .filter_map(|e| e.ok().map(|e| e.path()))
+                .filter(|p| p.extension().is_some_and(|x| x == "json"))
+                .collect();
+            files.sort();
+            let last = files.last().ok_or_else(|| anyhow!("no exercise records"))?;
+            let ex = ledger::Exercise::load(last)?;
+            hex::decode(&ex.circuit_hash)?
+                .try_into()
+                .map_err(|_| anyhow!("bad circuit hash in record"))?
+        }
+    };
+
+    let pda = ctx.passport_pda(&hash);
+    let acct = ctx
+        .rpc
+        .get_account(&pda)
+        .with_context(|| format!("no passport account at {pda}"))?;
+    if acct.data.len() < 8 + 124 {
+        return Err(anyhow!("account is too small to be a passport"));
+    }
+
+    // Anchor discriminator, then the fields in declaration order — which is the
+    // canonical layout with a `bump` appended.
+    let d = &acct.data[8..];
+    let mut core = Vec::with_capacity(125);
+    core.push(1u8);
+    core.extend_from_slice(&d[0..32]);
+    core.extend_from_slice(&d[32..64]);
+    core.extend_from_slice(&d[64..72]);
+    core.push(d[72]);
+    core.push(d[73]);
+    core.extend_from_slice(&d[74..82]);
+    core.extend_from_slice(&d[82..90]);
+    core.extend_from_slice(&d[90..122]);
+    core.extend_from_slice(&d[122..124]);
+
+    eprintln!("account   {pda}");
+    eprintln!("circuit   {}", hex::encode(hash));
+    eprintln!("sequence  {}", u64::from_le_bytes(d[64..72].try_into().unwrap()));
+    eprintln!("status    {}", if d[73] == 2 { "INVALID" } else { "VALID" });
+    eprintln!("bytes     {} (canonical)", core.len());
+    // Only the hex on stdout, so this composes into a shell pipeline.
+    println!("0x{}", hex::encode(&core));
+    Ok(())
 }
 
 /// Re-fetch every recorded signature from the cluster.

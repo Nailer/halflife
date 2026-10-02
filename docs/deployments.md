@@ -71,3 +71,30 @@ an off-chain process dispatched instead, the sender would be that process and th
 destination would be trusting it rather than the registry — the trust chain in
 `evm/README.md` would break at its first link. Anyone may pay to relay a
 passport; nobody may invent what is relayed.
+
+## Cross-chain
+
+`./scripts/cross-chain.sh` runs the whole path: a passport is read back from the
+deployed Solana registry on devnet and its canonical 125 bytes are delivered
+unchanged to an EVM destination, where a consumer contract reaches a decision
+from them.
+
+```
+./scripts/cross-chain.sh            # use the most recent passport
+./scripts/cross-chain.sh --fresh    # publish a new one on devnet first
+```
+
+**Real:** the off-chain signature, the Solana verification, the stored account,
+the bytes, both EVM contracts, and the decision.
+
+**Local:** the chain and the mailbox. A faucet-funded testnet swaps the RPC and
+the mailbox address and changes nothing else — the bytes, the contracts and the
+decision are identical.
+
+The mock mailbox is deliberately honest about its scope: it performs the one
+check the real mailbox performs before calling a recipient — ask which ISM the
+recipient requires and run that module's `verify` — so the recipient-side path
+is exercised exactly as in production. It does **not** stand in for the
+validator set, the relayer, or the aggregation of real attestations. Those live
+off-chain and a local chain cannot replace them. It exercises the delivery path,
+not the security of delivery.
