@@ -75,11 +75,11 @@ relayer-censorship    41s containment    PassportStale
 ./scripts/verify-all.sh
 ```
 
-Thirty checks across every layer. Every number it prints is measured during the
+Thirty-two checks across every layer. Every number it prints is measured during the
 run, not quoted.
 
 ```
-30 passed   0 failed   0 skipped
+32 passed   0 failed   0 skipped
 ```
 
 ## Measured, not claimed
@@ -90,6 +90,9 @@ run, not quoted.
 | Publish a signed passport | 11,550 CU |
 | Containment, dependency compromise | 4s |
 | Containment, relayer censorship | 41s, with no invalidation published |
+
+A passport written on Solana devnet also drives a consumer on an EVM chain to
+the same decision from the same 125 bytes — `./scripts/cross-chain.sh`.
 
 Reproduce with `cargo run --release -p halflife-bench`.
 

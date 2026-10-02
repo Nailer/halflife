@@ -169,6 +169,29 @@ else
   skip "no exercise records — run: halflife-exercise run dependency-compromise"
 fi
 
+# ------------------------------------------------ 8c. cross-chain + self
+step "8c. Cross-chain and self-assurance"
+if command -v anvil >/dev/null 2>&1 && [ -f evm/src/MockMailbox.sol ]; then
+  if ./scripts/cross-chain.sh >/tmp/hl.cc 2>&1; then
+    grep -q "consumer BLOCKS\|consumer PROCEEDS" /tmp/hl.cc \
+      && ok "devnet passport drives an EVM consumer to a decision" \
+      || bad "cross-chain produced no decision"
+  else
+    bad "cross-chain"; tail -10 /tmp/hl.cc | sed 's/^/       /'
+  fi
+else
+  skip "anvil unavailable — cross-chain path not exercised"
+fi
+
+# Halflife under its own instrument. The result is allowed to be unflattering;
+# what is not allowed is the scan failing to run.
+if ./scripts/self-passport.sh /tmp/hl-self >/tmp/hl.self 2>&1; then
+  st=$(python3 -c "import json;print(json.load(open('/tmp/hl-self/passport.json'))['core']['status'])")
+  ok "Halflife issues a passport for itself — reports $st"
+else
+  bad "self-passport"; tail -8 /tmp/hl.self | sed 's/^/       /'
+fi
+
 # -------------------------------------------------------- 9. live devnet
 step "9. Devnet deployments"
 for pair in "halflife_passport:CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2" \

@@ -13,7 +13,7 @@ repo. Skip the tour if it appears — you are giving it yourself.
 cd ~/Documents/Github/halflife && ./scripts/verify-all.sh
 ```
 
-Leave the `30 passed · 0 failed` on screen if you want a cold open. If anything
+Leave the `32 passed · 0 failed` on screen if you want a cold open. If anything
 is red, stop and fix it rather than talking over it.
 
 ---
@@ -101,6 +101,18 @@ Toggle **PUBLIC → OPERATOR** in the header.
 > Watch what the public view does: they are not redacted, they are **absent**. A
 > dependency used only by embargoed circuits is indistinguishable from one
 > nothing uses. That is the embargo mechanism running on a real embargo."
+
+---
+
+## 5b · Across chains (optional, 20 seconds)
+
+```bash
+./scripts/cross-chain.sh
+```
+
+> "And the same passport, read back off devnet, delivered to an EVM chain. Same
+> 125 bytes, same decision. The chain and the mailbox are local — a funded
+> testnet swaps an RPC URL and changes nothing else."
 
 ---
 
