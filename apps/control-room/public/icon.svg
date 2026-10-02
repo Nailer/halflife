@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#0b0c0e"/>
+  <!-- the full arc: evidence as issued -->
+  <path d="M12 44 C 20 18, 32 14, 52 14" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round"/>
+  <!-- the decayed remainder -->
+  <path d="M12 44 C 20 18, 32 14, 52 14" fill="none" stroke="#d29922" stroke-width="5"
+        stroke-linecap="round" stroke-dasharray="26 100"/>
+  <circle cx="52" cy="14" r="5" fill="#f85149"/>
+</svg>

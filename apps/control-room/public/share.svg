@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0b0c0e"/>
+  <rect x="0" y="0" width="1200" height="3" fill="#3fb950"/>
+  <rect x="0" y="0" width="520" height="3" fill="#d29922"/>
+  <rect x="0" y="0" width="190" height="3" fill="#f85149"/>
+  <text x="80" y="150" font-family="Archivo,system-ui,sans-serif" font-size="22" font-weight="700" fill="#e8e6e1" letter-spacing="-0.5">Halflife</text>
+  <text x="196" y="150" font-family="JetBrains Mono,monospace" font-size="14" fill="#5f5e59" letter-spacing="2.4">CONTROL ROOM</text>
+  <text x="80" y="290" font-family="Archivo,system-ui,sans-serif" font-size="68" font-weight="700" fill="#e8e6e1" letter-spacing="-2.4">A use-by date for</text>
+  <text x="80" y="366" font-family="Archivo,system-ui,sans-serif" font-size="68" font-weight="700" fill="#e8e6e1" letter-spacing="-2.4">cryptographic security.</text>
+  <text x="80" y="438" font-family="Archivo,system-ui,sans-serif" font-size="25" fill="#8d8b85">Signed passports for zero-knowledge circuits, enforceable on-chain.</text>
+  <g font-family="JetBrains Mono,monospace" font-size="15" letter-spacing="1.6">
+    <text x="80" y="536" fill="#3fb950">1,520 CU PER CHECK</text>
+    <text x="330" y="536" fill="#d29922">41s CONTAINMENT, NOTHING PUBLISHED</text>
+    <text x="80" y="566" fill="#5f5e59">THREE INDEPENDENT IMPLEMENTATIONS AGREE ON 125 BYTES</text>
+  </g>
+</svg>

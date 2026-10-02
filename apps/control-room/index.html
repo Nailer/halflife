@@ -5,7 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0B0C0E" />
     <title>Halflife — Control Room</title>
-    <meta name="description" content="Security passports for zero-knowledge circuits. Live blast radius and fire drill telemetry." />
+    <meta name="description" content="A use-by date for cryptographic security. Signed passports for zero-knowledge circuits, enforceable on-chain." />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Halflife — a use-by date for cryptographic security" />
+    <meta property="og:description" content="Four cryptographic systems failed in 2026, every flaw years old. An audit is a perishable good. Halflife gives a ZK circuit a signed passport that programs refuse to proceed without." />
+    <meta property="og:url" content="https://halflife-control-room.vercel.app" />
+    <meta property="og:image" content="https://halflife-control-room.vercel.app/share.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Halflife — a use-by date for cryptographic security" />
+    <meta name="twitter:description" content="Signed passports for zero-knowledge circuits, enforceable on-chain. 1,520 CU per check." />
+    <meta name="twitter:image" content="https://halflife-control-room.vercel.app/share.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,7 +25,16 @@
     />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown until React mounts, so a slow network sees the product name
+           rather than a blank page. Replaced on first render. -->
+      <div style="min-height:100dvh;display:grid;place-items:center;font-family:Archivo,system-ui,sans-serif;color:#8d8b85">
+        <div style="text-align:center">
+          <div style="font-size:17px;font-weight:700;color:#e8e6e1;letter-spacing:-.025em">Halflife</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-top:6px">control room</div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
