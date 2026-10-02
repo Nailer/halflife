@@ -14,3 +14,7 @@ solana/deploy-keypair.json
 evm/lib/
 evm/out/
 evm/cache/
+evm/.deployer
+evm/broadcast/
+apps/control-room/node_modules/
+apps/control-room/dist/

@@ -1,0 +1,404 @@
+{
+  "audience": "OPERATOR",
+  "circuits": [
+    {
+      "capability": 1,
+      "circuitHash": "05b705c6c38ccdf31e073227423b5e458d2fcabc28b26af3f7e21cdb0cbffc55",
+      "commit": "crates.io:lyrion-orchard@0.11.0",
+      "dependencies": 3,
+      "expiresAt": "1790987456",
+      "issuer": "556FeVWbW8LNv6Cg8RURWPjnuroKFmvadWWoUvmBrVXi",
+      "name": "lyrion-orchard",
+      "proofSystem": "halo2",
+      "repository": "https://crates.io/crates/lyrion-orchard",
+      "sequence": "2",
+      "status": "INVALID"
+    },
+    {
+      "capability": 1,
+      "circuitHash": "db62b86b2d3d5645c872be458d55c4374d90f853969a0be971df1a4cbf6c63bb",
+      "commit": "crates.io:orchard@0.15.5",
+      "dependencies": 3,
+      "expiresAt": "1790987456",
+      "issuer": "556FeVWbW8LNv6Cg8RURWPjnuroKFmvadWWoUvmBrVXi",
+      "name": "orchard",
+      "proofSystem": "halo2",
+      "repository": "https://crates.io/crates/orchard",
+      "sequence": "2",
+      "status": "VALID"
+    },
+    {
+      "capability": 1,
+      "circuitHash": "3ae211e275bee342e5364fd86bd4cb9b16dfbc9b7bdb2c311e9dda7590497917",
+      "commit": "7c3b9a2f5e18d4c6b0a91f3d82e7c4551ad0b6e9",
+      "dependencies": 5,
+      "expiresAt": "1790987456",
+      "issuer": "556FeVWbW8LNv6Cg8RURWPjnuroKFmvadWWoUvmBrVXi",
+      "name": "orchard-action-circuit",
+      "proofSystem": "halo2",
+      "repository": "https://github.com/zcash/orchard",
+      "sequence": "2",
+      "status": "VALID"
+    },
+    {
+      "capability": 1,
+      "circuitHash": "54630fd6d629dab4ee62c19492afa7394b8a3e4089395228a1d46a8758772594",
+      "commit": "0d1b4b0a84e6e0ba0e0e4e0f8f2f6fbb1c5a7e31",
+      "dependencies": 5,
+      "expiresAt": "1790987456",
+      "issuer": "556FeVWbW8LNv6Cg8RURWPjnuroKFmvadWWoUvmBrVXi",
+      "name": "orchard-action-circuit",
+      "proofSystem": "halo2",
+      "repository": "https://github.com/zcash/orchard",
+      "sequence": "2",
+      "status": "INVALID"
+    },
+    {
+      "capability": 1,
+      "circuitHash": "5b0051714da9d9b1d11a93d6448680dc4bb9cd3b0067c5ab015a80dbe5d0f1f8",
+      "commit": "crates.io:valar-orchard@0.12.0",
+      "dependencies": 3,
+      "expiresAt": "1790987456",
+      "issuer": "556FeVWbW8LNv6Cg8RURWPjnuroKFmvadWWoUvmBrVXi",
+      "name": "valar-orchard",
+      "proofSystem": "halo2",
+      "repository": "https://crates.io/crates/valar-orchard",
+      "sequence": "2",
+      "status": "INVALID"
+    },
+    {
+      "capability": 1,
+      "circuitHash": "f00317539aae178a216e0832e948a2b649975bf9d842dad4638fcad003a47d0f",
+      "commit": "crates.io:voting-crypto-deps@0.2.3",
+      "dependencies": 5,
+      "expiresAt": "1790987456",
+      "issuer": "556FeVWbW8LNv6Cg8RURWPjnuroKFmvadWWoUvmBrVXi",
+      "name": "voting-crypto-deps",
+      "proofSystem": "halo2",
+      "repository": "https://crates.io/crates/voting-crypto-deps",
+      "sequence": "2",
+      "status": "VALID"
+    },
+    {
+      "capability": 1,
+      "circuitHash": "383d055786c887fb4fe230f88d9cca25b9f06ab16b2cd29351ddf0c0ccda45e3",
+      "commit": "crates.io:zk-psi-verifier@0.1.0",
+      "dependencies": 3,
+      "expiresAt": "1790987456",
+      "issuer": "556FeVWbW8LNv6Cg8RURWPjnuroKFmvadWWoUvmBrVXi",
+      "name": "zk-psi-verifier",
+      "proofSystem": "halo2",
+      "repository": "https://crates.io/crates/zk-psi-verifier",
+      "sequence": "2",
+      "status": "INVALID"
+    },
+    {
+      "capability": 1,
+      "circuitHash": "1cd5d8364e69ef9f6301fe771a8d3bffd42eeea931b677adfb97b5c33a5e2b82",
+      "commit": "crates.io:zkdoc_sdk@0.0.1",
+      "dependencies": 3,
+      "expiresAt": "1790987456",
+      "issuer": "556FeVWbW8LNv6Cg8RURWPjnuroKFmvadWWoUvmBrVXi",
+      "name": "zkdoc_sdk",
+      "proofSystem": "halo2",
+      "repository": "https://crates.io/crates/zkdoc_sdk",
+      "sequence": "2",
+      "status": "INVALID"
+    }
+  ],
+  "dependencies": [
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 2,
+      "clean": 2,
+      "name": "halflife-fixture-circuit",
+      "version": "0.1.0"
+    },
+    {
+      "advisories": [
+        "GHSA-ww9q-8r59-xv46"
+      ],
+      "affected": 1,
+      "circuits": 1,
+      "clean": 0,
+      "name": "halo2_gadgets",
+      "version": "0.2.0"
+    },
+    {
+      "advisories": [
+        "GHSA-ww9q-8r59-xv46"
+      ],
+      "affected": 1,
+      "circuits": 1,
+      "clean": 0,
+      "name": "halo2_gadgets",
+      "version": "0.3.1"
+    },
+    {
+      "advisories": [
+        "GHSA-ww9q-8r59-xv46"
+      ],
+      "affected": 3,
+      "circuits": 3,
+      "clean": 0,
+      "name": "halo2_gadgets",
+      "version": "0.4.0"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 3,
+      "clean": 3,
+      "name": "halo2_gadgets",
+      "version": "0.5.0"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 1,
+      "clean": 1,
+      "name": "halo2_proofs",
+      "version": "0.2.0"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 2,
+      "clean": 2,
+      "name": "halo2_proofs",
+      "version": "0.3.2"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 5,
+      "clean": 5,
+      "name": "halo2_proofs",
+      "version": "0.3.5"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 1,
+      "clean": 1,
+      "name": "lyrion-orchard",
+      "version": "0.11.0"
+    },
+    {
+      "advisories": [
+        "GHSA-ww9q-8r59-xv46"
+      ],
+      "affected": 1,
+      "circuits": 1,
+      "clean": 0,
+      "name": "orchard",
+      "version": "0.13.1"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 1,
+      "clean": 1,
+      "name": "orchard",
+      "version": "0.14.0"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 2,
+      "clean": 2,
+      "name": "orchard",
+      "version": "0.15.5"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 1,
+      "clean": 1,
+      "name": "valar-orchard",
+      "version": "0.12.0"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 1,
+      "clean": 1,
+      "name": "voting-crypto-deps",
+      "version": "0.2.3"
+    },
+    {
+      "advisories": [
+        "GHSA-ww9q-8r59-xv46"
+      ],
+      "affected": 1,
+      "circuits": 1,
+      "clean": 0,
+      "name": "zcash_primitives",
+      "version": "0.27.1"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 1,
+      "clean": 1,
+      "name": "zcash_primitives",
+      "version": "0.28.0"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 1,
+      "clean": 1,
+      "name": "zcash_primitives",
+      "version": "0.30.1"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 1,
+      "clean": 1,
+      "name": "zk-psi-verifier",
+      "version": "0.1.0"
+    },
+    {
+      "advisories": [],
+      "affected": 0,
+      "circuits": 1,
+      "clean": 1,
+      "name": "zkdoc_sdk",
+      "version": "0.0.1"
+    }
+  ],
+  "deployments": {
+    "solanaDevnet": {
+      "consumerProgram": "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW",
+      "hyperlaneMailbox": "5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54",
+      "passportProgram": "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2"
+    }
+  },
+  "exercises": [
+    {
+      "circuit_hash": "dc64e30744627d46ae381460325d588eedd6ced15416f41517013d934a8d0531",
+      "cluster": "devnet",
+      "consumer_program": "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW",
+      "events": [
+        {
+          "detail": "exercise issuer registered",
+          "evidence": {
+            "signature": "3rSZ94UC4i853PyZ39vyN14KyFurQkNSyUhhSnoZ3Nz9FfJABaCMJuyNKfHMcCqRAgGHQyujNLmWgFGQ7TPLrQy5",
+            "slot": 506279465,
+            "type": "SOLANA_TRANSACTION"
+          },
+          "kind": "FINDING_REGISTERED",
+          "observed_at": 1790859363,
+          "seq": 1
+        },
+        {
+          "detail": "affected circuit identified from the registry",
+          "evidence": {
+            "note": "halo2_gadgets@0.4.0 matches GHSA-ww9q-8r59-xv46 in this closure",
+            "type": "LOCAL"
+          },
+          "kind": "IMPACT_PROJECTED",
+          "observed_at": 1790859363,
+          "seq": 2
+        },
+        {
+          "detail": "baseline VALID passport, sequence 1",
+          "evidence": {
+            "signature": "53GxCVEtmTj7a5S3F7Za8aH4NaxB91t1FxnuAozX1edHqMmBY3cYfMEDcPm4teYFD6e19hUgBuXxEgW5MrAzTZ5c",
+            "slot": 506279471,
+            "type": "SOLANA_TRANSACTION"
+          },
+          "kind": "SOLANA_COMMITTED",
+          "observed_at": 1790859365,
+          "seq": 3
+        },
+        {
+          "detail": "INVALID published, sequence 2",
+          "evidence": {
+            "signature": "3hXgGNnsDp1e5DwXP1ZTk4ppLSXNURgQugZ72AX9ATChWoLPydKnrsKjcXdjF1oX8DqW1PHahaPtVX4uPc8XmsEj",
+            "slot": 506279479,
+            "type": "SOLANA_TRANSACTION"
+          },
+          "kind": "PASSPORT_INVALIDATED",
+          "observed_at": 1790859367,
+          "seq": 4
+        },
+        {
+          "detail": "consumer refused to proceed",
+          "evidence": {
+            "note": "InstructionError(0, Custom(6003))",
+            "type": "LOCAL"
+          },
+          "kind": "CONSUMER_BLOCKED",
+          "observed_at": 1790859367,
+          "seq": 5
+        }
+      ],
+      "exercise_id": "dependency-compromise-1790859361",
+      "passport_program": "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2",
+      "scenario": "DEPENDENCY_COMPROMISE",
+      "started_at": 1790859361
+    },
+    {
+      "circuit_hash": "e8d694d442b6a4b7209f3225fce8ba9bdd93202c5f27bd1a0f6b12044be34bca",
+      "cluster": "devnet",
+      "consumer_program": "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW",
+      "events": [
+        {
+          "detail": "VALID passport, expires at 1790859414",
+          "evidence": {
+            "signature": "62kchqmCWrSNytTNfD9Pdgsq5mxC4mcCCVPw1LxaKhEBmDVZqYFG16fTUj6u3pYR5eee6WnjAT3ReK2EQCSb1XDL",
+            "slot": 506279516,
+            "type": "SOLANA_TRANSACTION"
+          },
+          "kind": "SOLANA_COMMITTED",
+          "observed_at": 1790859375,
+          "seq": 1
+        },
+        {
+          "detail": "delivery deliberately stopped",
+          "evidence": {
+            "note": "no further transaction is submitted for this circuit",
+            "type": "LOCAL"
+          },
+          "kind": "RELAYER_STOPPED",
+          "observed_at": 1790859375,
+          "seq": 2
+        },
+        {
+          "detail": "passport aged out with no update delivered",
+          "evidence": {
+            "note": "expires_at 1790859414 passed",
+            "type": "LOCAL"
+          },
+          "kind": "PASSPORT_EXPIRED",
+          "observed_at": 1790859416,
+          "seq": 3
+        },
+        {
+          "detail": "consumer blocked on staleness, not on any published finding",
+          "evidence": {
+            "note": "InstructionError(0, Custom(6002))",
+            "type": "LOCAL"
+          },
+          "kind": "CONSUMER_BLOCKED",
+          "observed_at": 1790859416,
+          "seq": 4
+        }
+      ],
+      "exercise_id": "relayer-censorship-1790859373",
+      "passport_program": "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2",
+      "scenario": "RELAYER_CENSORSHIP",
+      "started_at": 1790859373
+    }
+  ],
+  "generatedAt": "1790901056",
+  "measured": {
+    "consumerCheckCu": 1520,
+    "publishCu": 11550,
+    "registerIssuerCu": 7406
+  }
+}

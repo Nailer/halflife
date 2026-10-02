@@ -74,6 +74,19 @@ enum Cmd {
         #[arg(long, default_value = DEFAULT_REGISTRY, global = true)]
         registry: PathBuf,
     },
+    /// Export the whole system state as JSON for the control room.
+    Export {
+        #[arg(long, default_value = DEFAULT_REGISTRY)]
+        registry: PathBuf,
+        #[arg(long, default_value = "exercises")]
+        exercises: PathBuf,
+        #[arg(short, long, default_value = "apps/control-room/public/state.json")]
+        out: PathBuf,
+        /// Export the operator view. Without this the export is the public view
+        /// and embargoed findings are absent, not redacted.
+        #[arg(long)]
+        operator: bool,
+    },
     /// Verify a passport's signature and bindings, and resolve its status now.
     Verify {
         passport: PathBuf,
@@ -191,6 +204,12 @@ fn main() -> Result<()> {
             RegistryOp::List => registry_list(&registry),
             RegistryOp::Deps => registry_deps(&registry),
         },
+        Cmd::Export {
+            registry,
+            exercises,
+            out,
+            operator,
+        } => export(&registry, &exercises, &out, operator),
         Cmd::Verify {
             passport,
             evidence,
@@ -430,6 +449,113 @@ fn truncate(s: &str, n: usize) -> String {
     } else {
         format!("{}…", &s[..n - 1])
     }
+}
+
+/// Dump everything the control room renders.
+///
+/// The UI is a client of this, not a second source of truth: it displays what
+/// the CLI computed and nothing it computed itself. That is deliberate — a
+/// dashboard that derives its own numbers can show something the system does
+/// not actually believe.
+fn export(registry: &Path, exercises: &Path, out: &Path, operator: bool) -> Result<()> {
+    let store = Store::open(registry)?;
+    let audience = if operator { Audience::Operator } else { Audience::Public };
+    let n = now();
+
+    let mut circuits = Vec::new();
+    for c in store.circuits()? {
+        let p = store.latest_passport(&c.circuit_hash)?;
+        // Absence is not permission: a registered circuit with no passport is
+        // reported as NONE, never as healthy.
+        let (status, capability, sequence, expires_at, issuer) = match &p {
+            Some(p) => (
+                match (p.status, p.expires_at) {
+                    (Status::Invalid, _) => "INVALID",
+                    (Status::Valid, e) if n >= e => "STALE",
+                    _ => "VALID",
+                },
+                p.capability.tier(),
+                p.sequence,
+                p.expires_at,
+                p.issuer.clone(),
+            ),
+            None => ("NONE", 0, 0, 0, String::new()),
+        };
+        // An embargoed circuit must not appear in a public export at all.
+        if !operator && p.as_ref().map(|p| p.disclosure) != Some(DisclosureState::Public) {
+            continue;
+        }
+        circuits.push(serde_json::json!({
+            "circuitHash": c.circuit_hash,
+            "name": c.name,
+            "repository": c.repository,
+            "commit": c.commit,
+            "proofSystem": c.proof_system,
+            "dependencies": store.dependency_count(&c.circuit_hash)?,
+            "status": status,
+            "capability": capability,
+            "sequence": sequence.to_string(),
+            "expiresAt": expires_at.to_string(),
+            "issuer": issuer,
+        }));
+    }
+
+    let mut deps = Vec::new();
+    for (name, version, count) in store.known_dependencies()? {
+        let imp = project(&store, &name, &version, audience)?;
+        deps.push(serde_json::json!({
+            "name": name,
+            "version": version,
+            "circuits": count,
+            "affected": imp.affected.len(),
+            "clean": imp.clean.len(),
+            "advisories": imp.advisories,
+        }));
+    }
+
+    let mut records = Vec::new();
+    if exercises.is_dir() {
+        let mut files: Vec<_> = std::fs::read_dir(exercises)?
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| p.extension().is_some_and(|x| x == "json"))
+            .collect();
+        files.sort();
+        for f in files {
+            if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&std::fs::read(&f)?) {
+                records.push(v);
+            }
+        }
+    }
+
+    let state = serde_json::json!({
+        "generatedAt": n.to_string(),
+        "audience": if operator { "OPERATOR" } else { "PUBLIC" },
+        "circuits": circuits,
+        "dependencies": deps,
+        "exercises": records,
+        "deployments": {
+            "solanaDevnet": {
+                "passportProgram": "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2",
+                "consumerProgram": "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW",
+                "hyperlaneMailbox": "5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54"
+            }
+        },
+        "measured": { "consumerCheckCu": 1520, "publishCu": 11550, "registerIssuerCu": 7406 }
+    });
+
+    if let Some(d) = out.parent() {
+        std::fs::create_dir_all(d)?;
+    }
+    std::fs::write(out, serde_json::to_vec_pretty(&state)?)?;
+    println!(
+        "exported {} circuits · {} dependencies · {} exercises  ({})",
+        state["circuits"].as_array().map_or(0, |a| a.len()),
+        state["dependencies"].as_array().map_or(0, |a| a.len()),
+        state["exercises"].as_array().map_or(0, |a| a.len()),
+        if operator { "OPERATOR view" } else { "PUBLIC view" }
+    );
+    println!("written  {}", out.display());
+    Ok(())
 }
 
 fn verify(passport: &Path, evidence: Option<&Path>, at: i64) -> Result<()> {
