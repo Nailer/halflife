@@ -91,12 +91,12 @@ pre-approved: the decision depends on a measurement that does not exist yet.
 
 - [x] **B7.1** Explorer
 - [x] **B7.2** Control room — projection, exercise, live telemetry
-- [ ] **B7.3** CI action — the adoption wedge
+- [x] **B7.3** CI action — the adoption wedge
 - [ ] **B7.4** Consumer registration (only then may projection claim protocols)
 
 ## Stage 8 — Assurance
 
-- [ ] **B8.1** Halflife's own passport
+- [x] **B8.1** Halflife's own passport
 - [ ] **B8.2** Threshold signing
 - [ ] **B8.3** Reproducible builds
 - [ ] **B8.4** Key-compromise drill
