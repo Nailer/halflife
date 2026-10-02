@@ -1,0 +1,90 @@
+name: halflife
+
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  verify:
+    name: verify the system
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Unit tests
+        run: cargo test --release --locked
+
+      # The format is the contract between four runtimes. A decoder checked only
+      # against its own encoder will happily agree with a mistake, so both
+      # implementations run.
+      - name: Conformance — Rust
+        run: ./target/release/halflife vectors verify fixtures/vectors.json
+
+      - name: Conformance — independent Node implementation
+        run: node packages/passport-ts/verify-vectors.mjs fixtures/vectors.json
+
+      - name: Negative control — a tampered vector must be rejected
+        run: |
+          python3 - <<'PY'
+          import json
+          d = json.load(open("fixtures/vectors.json"))
+          d["vectors"][0]["core"]["sequence"] = "424242"
+          json.dump(d, open("/tmp/tampered.json", "w"))
+          PY
+          if node packages/passport-ts/verify-vectors.mjs /tmp/tampered.json; then
+            echo "::error::a tampered vector was accepted — the suite cannot fail"
+            exit 1
+          fi
+          echo "tampered vector rejected"
+
+      - name: EVM destination
+        run: |
+          cd evm
+          forge install foundry-rs/forge-std --no-git
+          forge test -vv
+
+  circuit-advisories:
+    name: circuit advisory gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked
+
+      # The adoption wedge: useful to a single team on day one, with no network
+      # effect required. A pull request that moves a circuit onto a dependency
+      # carrying a published advisory fails here rather than at an incident.
+      - name: Scan the registered fleet
+        run: |
+          ./target/release/halflife keygen --out /tmp/ci-issuer.json
+          fail=0
+          for t in fixtures/fleet/*/ fixtures/orchard-patched; do
+            t="${t%/}"
+            if ! ./target/release/halflife scan "$t" \
+                  --issuer /tmp/ci-issuer.json --offline --out "/tmp/out/$(basename "$t")" >/dev/null; then
+              echo "::error::scan failed for $t"; fail=1; continue
+            fi
+            if grep -q '"INVALID"' "/tmp/out/$(basename "$t")/passport.json"; then
+              adv=$(python3 -c "
+import json,sys
+e=json.load(open('/tmp/out/$(basename "$t")/evidence.json'))
+hits=[f\"{d['name']}@{d['version']} {','.join(d['advisories'])}\" for d in e['dependencies'] if d['advisories']]
+print('; '.join(hits))")
+              echo "::error title=Advisory in closure::$(basename "$t") — $adv"
+              fail=1
+            else
+              echo "ok  $(basename "$t")"
+            fi
+          done
+          exit $fail
