@@ -90,7 +90,7 @@ pre-approved: the decision depends on a measurement that does not exist yet.
 ## Stage 7 — Surfaces
 
 - [ ] **B7.1** Explorer
-- [ ] **B7.2** Control room — projection, exercise, live telemetry
+- [x] **B7.2** Control room — projection, exercise, live telemetry
 - [ ] **B7.3** CI action — the adoption wedge
 - [ ] **B7.4** Consumer registration (only then may projection claim protocols)
 
