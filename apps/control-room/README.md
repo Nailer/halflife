@@ -1,5 +1,10 @@
 # Control room
 
+**https://halflife-control-room.vercel.app**
+
+Five views, a guided tour, light and dark themes. Reads state produced by the
+CLI; computes nothing of its own.
+
 The interface for Halflife. Reads state produced by the CLI; computes nothing
 of its own.
 
@@ -44,3 +49,21 @@ meaning, so it is reserved entirely for state:
 Amber for stale is a deliberate refusal to paint it red. Collapsing the two
 would make every delivery hiccup look like a vulnerability, which is exactly the
 confusion the protocol is built to avoid.
+
+## The tour
+
+Five steps, spotlighting real elements. It switches views when a step's target
+lives elsewhere, waits for the view transition to settle before measuring, and
+remembers that you have seen it. The `?` button in the header replays it.
+
+The scrim is a single enormous `box-shadow` on one moving rectangle rather than
+four stitched panels, which is what keeps the transition between steps smooth.
+
+## Themes
+
+Light and dark, toggled in the header and persisted. Status colours are
+redefined per theme rather than reused — amber on white needs a different value
+than amber on near-black to carry the same weight — but the meanings never move.
+
+Every storage access is wrapped: a private window that throws on `localStorage`
+loses the preference, not the page.
