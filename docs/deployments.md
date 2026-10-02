@@ -1,5 +1,14 @@
 # Deployments
 
+## Control room
+
+**https://halflife-control-room.vercel.app**
+
+Static build, redeployed with `./scripts/deploy-ui.sh`, which regenerates both
+audience exports from the live registry before shipping. The `PUBLIC` /
+`OPERATOR` toggle in the top right loads different exports — embargoed findings
+are absent from the public one, not redacted.
+
 ## Solana devnet
 
 | Program | Address |
