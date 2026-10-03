@@ -64,27 +64,11 @@
       "version": "0.1.0"
     },
     {
-      "advisories": [],
-      "affected": 0,
-      "circuits": 1,
-      "clean": 0,
-      "name": "halo2_gadgets",
-      "version": "0.2.0"
-    },
-    {
-      "advisories": [],
-      "affected": 0,
-      "circuits": 1,
-      "clean": 0,
-      "name": "halo2_gadgets",
-      "version": "0.3.1"
-    },
-    {
       "advisories": [
         "GHSA-ww9q-8r59-xv46"
       ],
       "affected": 1,
-      "circuits": 3,
+      "circuits": 1,
       "clean": 0,
       "name": "halo2_gadgets",
       "version": "0.4.0"
@@ -100,14 +84,6 @@
     {
       "advisories": [],
       "affected": 0,
-      "circuits": 1,
-      "clean": 0,
-      "name": "halo2_proofs",
-      "version": "0.2.0"
-    },
-    {
-      "advisories": [],
-      "affected": 0,
       "circuits": 2,
       "clean": 2,
       "name": "halo2_proofs",
@@ -116,18 +92,10 @@
     {
       "advisories": [],
       "affected": 0,
-      "circuits": 5,
+      "circuits": 2,
       "clean": 2,
       "name": "halo2_proofs",
       "version": "0.3.5"
-    },
-    {
-      "advisories": [],
-      "affected": 0,
-      "circuits": 1,
-      "clean": 0,
-      "name": "lyrion-orchard",
-      "version": "0.11.0"
     },
     {
       "advisories": [
@@ -154,14 +122,6 @@
       "clean": 2,
       "name": "orchard",
       "version": "0.15.5"
-    },
-    {
-      "advisories": [],
-      "affected": 0,
-      "circuits": 1,
-      "clean": 0,
-      "name": "valar-orchard",
-      "version": "0.12.0"
     },
     {
       "advisories": [],
@@ -196,22 +156,6 @@
       "clean": 1,
       "name": "zcash_primitives",
       "version": "0.30.1"
-    },
-    {
-      "advisories": [],
-      "affected": 0,
-      "circuits": 1,
-      "clean": 0,
-      "name": "zk-psi-verifier",
-      "version": "0.1.0"
-    },
-    {
-      "advisories": [],
-      "affected": 0,
-      "circuits": 1,
-      "clean": 0,
-      "name": "zkdoc_sdk",
-      "version": "0.0.1"
     }
   ],
   "deployments": {
@@ -339,7 +283,7 @@
       "started_at": 1790859373
     }
   ],
-  "generatedAt": "1790947527",
+  "generatedAt": "1790986502",
   "measured": {
     "consumerCheckCu": 1520,
     "publishCu": 11550,

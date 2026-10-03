@@ -305,14 +305,32 @@ impl Store {
         Ok(out)
     }
 
-    /// Every distinct `name@version` in the registry, for listing what is known.
-    pub fn known_dependencies(&self) -> Result<Vec<(String, String, usize)>> {
+    /// Every distinct `name@version` an audience may see.
+    ///
+    /// Audience-filtered in the query, like every other projection path. An
+    /// earlier version was not, and leaked: a fixture's own root package name
+    /// appears in its closure, so listing dependencies unfiltered published the
+    /// names of embargoed circuits even though the circuit list itself hid
+    /// them. Filtering must cover every surface, not the obvious one.
+    pub fn known_dependencies(&self, audience: Audience) -> Result<Vec<(String, String, usize)>> {
+        let public_only = i64::from(audience.is_public());
         let mut stmt = self.conn.prepare(
-            "SELECT name, version, COUNT(*) FROM dependencies
-             GROUP BY name, version ORDER BY name, version",
+            "WITH latest AS (
+                 SELECT circuit_hash, disclosure,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY circuit_hash ORDER BY sequence DESC
+                        ) AS rn
+                 FROM passports
+             )
+             SELECT d.name, d.version, COUNT(*)
+             FROM dependencies d
+             JOIN circuits c ON c.circuit_hash = d.circuit_hash
+             LEFT JOIN latest l ON l.circuit_hash = c.circuit_hash AND l.rn = 1
+             WHERE ?1 = 0 OR COALESCE(l.disclosure, 'EMBARGOED') = 'PUBLIC'
+             GROUP BY d.name, d.version ORDER BY d.name, d.version",
         )?;
         let rows = stmt
-            .query_map([], |r| {
+            .query_map(params![public_only], |r| {
                 Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? as usize))
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -597,6 +615,19 @@ mod port_tests {
             ev("pub-affected", "0.4.0", vec!["GHSA-ww9q-8r59-xv46"], DisclosureState::Public),
             ev("pub-clean", "0.5.0", vec![], DisclosureState::Public),
             ev("secret-affected", "0.4.0", vec!["GHSA-ww9q-8r59-xv46"], DisclosureState::Embargoed),
+            // An embargoed circuit whose closure contains its own name, which is
+            // exactly the shape that leaked.
+            {
+                let mut e = ev("secret-root", "0.4.0", vec![], DisclosureState::Embargoed);
+                e.dependencies.push(halflife_core::Dependency {
+                    name: "secret-root".into(),
+                    version: "9.9.9".into(),
+                    checksum: None,
+                    advisories: vec![],
+                });
+                e.normalize();
+                e
+            },
         ] {
             s.register(&e, &sp(&e), 0).unwrap();
         }
@@ -617,8 +648,10 @@ mod port_tests {
     #[test]
     fn public_counts_never_include_withheld_circuits() {
         let s = seeded();
+        // Two public, two embargoed. The public count must not hint at the
+        // other two in any way, including by arithmetic.
         assert_eq!(s.visible_circuits(Audience::Public).unwrap(), 2);
-        assert_eq!(s.visible_circuits(Audience::Operator).unwrap(), 3);
+        assert_eq!(s.visible_circuits(Audience::Operator).unwrap(), 4);
     }
 
     #[test]
@@ -627,6 +660,33 @@ mod port_tests {
         let p = project(&s, "halo2_gadgets", "0.5.0", Audience::Public).unwrap();
         assert_eq!(p.reached(), 1);
         assert!(p.is_clear());
+    }
+
+    #[test]
+    fn the_dependency_index_does_not_leak_embargoed_names() {
+        // The leak this caught in production: a fixture's own root package name
+        // appears in its closure, so an unfiltered dependency listing published
+        // the names of embargoed circuits while the circuit list correctly hid
+        // them. Every surface has to filter, not just the obvious one.
+        let s = seeded();
+        let pub_names: Vec<String> = s
+            .known_dependencies(Audience::Public)
+            .unwrap()
+            .into_iter()
+            .map(|(n, _, _)| n)
+            .collect();
+        assert!(
+            !pub_names.iter().any(|n| n.contains("secret")),
+            "embargoed circuit name leaked through the dependency index: {pub_names:?}"
+        );
+
+        let op_names: Vec<String> = s
+            .known_dependencies(Audience::Operator)
+            .unwrap()
+            .into_iter()
+            .map(|(n, _, _)| n)
+            .collect();
+        assert!(op_names.len() >= pub_names.len());
     }
 
     #[test]

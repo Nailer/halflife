@@ -430,7 +430,8 @@ fn registry_list(path: &Path) -> Result<()> {
 
 fn registry_deps(path: &Path) -> Result<()> {
     let store = Store::open(path)?;
-    let deps = store.known_dependencies()?;
+    // The CLI runs for an operator; the public surface is the export.
+    let deps = store.known_dependencies(Audience::Operator)?;
     if deps.is_empty() {
         println!("registry is empty");
         return Ok(());
@@ -501,7 +502,7 @@ fn export(registry: &Path, exercises: &Path, out: &Path, operator: bool) -> Resu
     }
 
     let mut deps = Vec::new();
-    for (name, version, count) in store.known_dependencies()? {
+    for (name, version, count) in store.known_dependencies(audience)? {
         let imp = project(&store, &name, &version, audience)?;
         deps.push(serde_json::json!({
             "name": name,

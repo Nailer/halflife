@@ -42,9 +42,40 @@ So the demonstration shows both views side by side. That is not a workaround for
 a limitation; it is the embargo mechanism running on a real embargo, which is
 better evidence than the names would have been.
 
-What is said publicly before the clock runs: *four published crates, unnamed,
-resolve to affected versions; maintainers have been notified; they will be named
-once the notice period ends.*
+What is said publicly before the clock runs: *four published crates, unnamed in
+the live exports, resolve to affected versions. Maintainers have **not** yet
+been notified, so the notice period has not started.*
+
+## Where this is still inconsistent
+
+**The repository names them.** `fixtures/fleet/` contains a directory per crate
+and `scripts/build-fleet.py` lists all four. The repository is public, so the
+names are public, even though the live exports no longer carry them.
+
+That is a real inconsistency and it is recorded here rather than left for
+someone else to notice. The fixtures exist because the findings have to be
+reproducible — a scan nobody can re-run is not evidence — and removing them
+would trade one kind of honesty for another. The underlying facts are already
+public: the advisory is published, and each crate's dependency requirement is
+visible on crates.io. What our policy treats as disclosure is the *aggregation*,
+and the aggregation is what the repository performs.
+
+The resolution is to notify the maintainers, which has not been done.
+
+## A leak that was live
+
+The public export carried all four names until 3 October 2026.
+
+The circuit list filtered correctly. The dependency index did not — a fixture's
+own root package name appears inside its closure, so listing dependencies
+without an audience filter published exactly the names the circuit filter was
+hiding. The leak tests covered `reached_by` and `visible_circuits` and never
+covered `known_dependencies`.
+
+Fixed, with the test that should have existed
+(`the_dependency_index_does_not_leak_embargoed_names`). The lesson is the
+general one: filtering has to cover every surface, and a leak test that covers
+the obvious path is the one most likely to miss.
 
 ## Known limit, restated
 
