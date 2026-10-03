@@ -1,0 +1,7 @@
+kokoro-v1.0.onnx
+voices-v1.0.bin
+audio/
+clips/
+music.wav
+timeline.json
+*.png

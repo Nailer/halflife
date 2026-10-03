@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Halflife video cards</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0c0e; --bg2: #101216; --s1: #14161a; --s2: #191c21; --s3: #20242a; --line: #22262c; --line2: #2d3238;
+  --text: #e8e6e1; --dim: #8d8b85; --faint: #5f5e59;
+  --valid: #3fb950; --stale: #d29922; --invalid: #f85149; --none: #6e7681; --live: #58a6ff; --violet: #a371f7;
+  --f: "Archivo", system-ui, sans-serif; --m: "JetBrains Mono", ui-monospace, monospace;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1440px; height: 810px; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--f); -webkit-font-smoothing: antialiased; }
+#root { position: absolute; inset: 0; }
+.scene { position: absolute; inset: 0; display: none; }
+.scene.on { display: block; }
+
+/* backdrop: faint instrument grid + glow */
+.bgx { position: absolute; inset: 0; overflow: hidden; }
+.bgx::before { content: ""; position: absolute; inset: -40px; background-image:
+  linear-gradient(to right, rgba(255,255,255,.035) 1px, transparent 1px),
+  linear-gradient(to bottom, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 48px 48px; mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, #000 30%, transparent 85%);
+  animation: drift 30s linear both; }
+.bgx::after { content: ""; position: absolute; width: 900px; height: 900px; left: 50%; top: 40%; transform: translate(-50%,-50%);
+  background: radial-gradient(circle, var(--glow, rgba(88,166,255,.08)), transparent 62%); }
+@keyframes drift { from { transform: translate(0,0); } to { transform: translate(-48px,-24px); } }
+
+/* frame chrome */
+.brand { position: absolute; left: 44px; top: 34px; display: flex; gap: 12px; align-items: baseline; }
+.brand b { font: 700 17px/1 var(--f); letter-spacing: -.02em; }
+.brand span { font: 400 10.5px/1 var(--m); letter-spacing: .16em; color: var(--dim); text-transform: uppercase; }
+.chap { position: absolute; right: 44px; top: 34px; font: 600 11px/1 var(--m); letter-spacing: .2em; color: var(--dim); text-transform: uppercase; }
+.chap i { font-style: normal; color: var(--bg); background: var(--text); padding: 4px 7px; border-radius: 3px; margin-right: 10px; }
+
+.mono { font-family: var(--m); }
+.k { font: 600 11px/1 var(--m); letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+.h1 { font: 700 60px/1.04 var(--f); letter-spacing: -.035em; }
+.h2 { font: 700 40px/1.1 var(--f); letter-spacing: -.03em; }
+.lead { font: 400 21px/1.5 var(--f); color: var(--dim); }
+.red { color: var(--invalid); } .grn { color: var(--valid); } .amb { color: var(--stale); } .blu { color: var(--live); }
+.card { background: var(--s1); border: 1px solid var(--line2); border-radius: 12px; box-shadow: 0 30px 70px -30px #000, 0 0 0 1px rgba(255,255,255,.02); }
+
+/* animation vocabulary (timed by data-a / data-o) */
+@keyframes up { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
+@keyframes left { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
+@keyframes right { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes growy { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes draw { from { stroke-dashoffset: var(--len, 2000); } to { stroke-dashoffset: 0; } }
+@keyframes type { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes stamp { 0% { opacity: 0; transform: scale(1.8) rotate(-8deg); } 60% { opacity: 1; transform: scale(.94) rotate(-8deg); } 100% { opacity: 1; transform: scale(1) rotate(-8deg); } }
+@keyframes out { to { opacity: 0; transform: translateY(-14px); } }
+@keyframes outf { to { opacity: 0; } }
+@keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--pc, rgba(248,81,73,.55)); } 100% { box-shadow: 0 0 0 22px rgba(0,0,0,0); } }
+@keyframes travel { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+@property --n { syntax: '<integer>'; inherits: false; initial-value: 0; }
+@keyframes count { from { --n: 0; } to { --n: var(--to); } }
+.cnt { counter-reset: n var(--n); }
+.cnt::after { content: counter(n); }
+
+/* ---------- s01 title ---------- */
+#s01_title { --glow: rgba(63,185,80,.07); }
+#s01_title .curve { position: absolute; left: 0; top: 0; }
+#s01_title .wrap { position: absolute; left: 0; right: 0; top: 232px; text-align: center; }
+#s01_title .word { font: 800 150px/1 var(--f); letter-spacing: -.055em; }
+#s01_title .word .half { color: var(--text); }
+#s01_title .word .life { color: transparent; -webkit-text-stroke: 2px var(--text); }
+#s01_title .sub { margin-top: 26px; font: 500 30px/1.3 var(--f); letter-spacing: -.015em; color: var(--text); }
+#s01_title .sub2 { margin-top: 12px; font: 400 18px/1.4 var(--f); color: var(--dim); }
+#s01_title .chips { margin-top: 38px; display: flex; gap: 12px; justify-content: center; }
+.chip { display: inline-flex; align-items: center; gap: 9px; padding: 9px 14px; border: 1px solid var(--line2); border-radius: 999px; font: 500 12px/1 var(--m); letter-spacing: .12em; text-transform: uppercase; color: var(--text); background: rgba(20,22,26,.8); }
+.chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+
+/* ---------- s02 problem ---------- */
+#s02_problem { --glow: rgba(248,81,73,.07); }
+#s02_problem .head { position: absolute; left: 120px; top: 108px; }
+#s02_problem .head .h1 { margin-top: 14px; }
+#s02_problem .rows { position: absolute; left: 120px; right: 120px; top: 268px; }
+.frow { display: grid; grid-template-columns: 110px 250px 1fr 260px; align-items: center; gap: 24px; height: 74px; border-top: 1px solid var(--line); }
+.frow:last-child { border-bottom: 1px solid var(--line); }
+.frow .d { font: 500 14px/1 var(--m); color: var(--dim); letter-spacing: .06em; }
+.frow .n { font: 700 25px/1 var(--f); letter-spacing: -.02em; }
+.frow .w { font: 400 18px/1.3 var(--f); color: var(--dim); }
+.frow .w b { color: var(--invalid); font-weight: 700; }
+.frow .age { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
+.frow .bar { height: 10px; border-radius: 5px; background: linear-gradient(90deg, rgba(248,81,73,.25), var(--invalid)); transform-origin: left; }
+.frow .yrs { font: 700 14px/1 var(--m); color: var(--invalid); width: 70px; text-align: right; }
+.frow .yrs.na { color: var(--faint); font-weight: 500; }
+#s02_problem .tags { position: absolute; left: 120px; right: 120px; top: 600px; display: flex; gap: 16px; }
+.tag { padding: 14px 20px; border-radius: 10px; border: 1px solid var(--line2); background: var(--s1); font: 600 19px/1 var(--f); }
+.tag .k { margin-bottom: 9px; display: block; }
+
+/* ---------- s03 insight ---------- */
+#s03_insight .ph { position: absolute; inset: 0; }
+#s03_insight .a .h { position: absolute; left: 0; right: 0; top: 112px; text-align: center; }
+#s03_insight .a .h .h2 { margin-top: 14px; }
+#s03_insight .cols { position: absolute; left: 150px; right: 150px; top: 272px; display: grid; grid-template-columns: 1fr 170px 1fr; gap: 0; align-items: stretch; }
+.gen { padding: 30px 32px; }
+.gen .k { margin-bottom: 18px; }
+.gen .t { font: 700 26px/1.2 var(--f); letter-spacing: -.02em; }
+.gen .code { margin-top: 18px; font: 400 13px/1.7 var(--m); color: var(--dim); background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.gen .res { margin-top: 22px; display: flex; align-items: center; gap: 12px; font: 700 22px/1 var(--m); }
+.gen .res .dot { width: 12px; height: 12px; border-radius: 50%; }
+.mid { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px; }
+.mid .eq { font: 700 13px/1.4 var(--m); letter-spacing: .14em; color: var(--dim); text-align: center; }
+.mid .eq b { display: block; font-size: 30px; color: var(--text); letter-spacing: 0; margin-top: 4px; }
+#s03_insight .b { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#s03_insight .b .h1 { font-size: 76px; text-align: center; }
+#s03_insight .stampbox { position: relative; margin-top: 46px; width: 760px; height: 110px; }
+#s03_insight .decay { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; border-radius: 7px; overflow: hidden; background: var(--s3); }
+#s03_insight .decay i { position: absolute; inset: 0; background: linear-gradient(90deg, var(--valid), var(--stale) 55%, var(--invalid)); transform-origin: left; }
+#s03_insight .decay-l { position: absolute; left: 0; bottom: 26px; font: 500 12px/1 var(--m); letter-spacing: .14em; color: var(--valid); }
+#s03_insight .decay-r { position: absolute; right: 0; bottom: 26px; font: 500 12px/1 var(--m); letter-spacing: .14em; color: var(--invalid); }
+#s03_insight .stamp { position: absolute; left: 50%; top: -6px; margin-left: -130px; width: 260px; padding: 10px 0; text-align: center; border: 3px solid var(--stale); color: var(--stale); border-radius: 8px; font: 800 24px/1 var(--m); letter-spacing: .14em; }
+#s03_insight .c { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#s03_insight .c .h2 { text-align: center; }
+.proofbox { margin-top: 40px; width: 720px; padding: 26px 32px; font: 400 19px/2 var(--m); }
+.proofbox .r { display: grid; grid-template-columns: 250px 1fr; }
+.proofbox .r span:first-child { color: var(--dim); }
+
+/* ---------- s04 solution ---------- */
+#s04_solution .a { position: absolute; inset: 0; }
+#s04_solution .a .h { position: absolute; left: 120px; top: 104px; }
+#s04_solution .a .h .h2 { margin-top: 14px; max-width: 900px; }
+.pp { position: absolute; left: 120px; right: 120px; top: 250px; padding: 30px 32px 34px; }
+.pp .top { display: flex; justify-content: space-between; align-items: center; }
+.pp .top .t { font: 700 22px/1 var(--f); letter-spacing: -.02em; }
+.pp .seal { font: 600 12px/1 var(--m); letter-spacing: .14em; color: var(--valid); border: 1px solid rgba(63,185,80,.5); padding: 8px 12px; border-radius: 6px; }
+.strip { margin-top: 26px; display: flex; height: 58px; border-radius: 8px; overflow: hidden; gap: 2px; }
+.strip > div { position: relative; background: var(--s3); display: flex; align-items: center; justify-content: center; font: 600 11px/1.1 var(--m); color: var(--dim); text-align: center; transform-origin: left; }
+.strip > div.hot { background: color-mix(in srgb, var(--hc) 22%, var(--s2)); color: var(--text); box-shadow: inset 0 -3px 0 var(--hc); }
+.flds { margin-top: 26px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.fld { padding: 16px 18px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg2); }
+.fld .k { color: var(--fc); margin-bottom: 10px; display: block; }
+.fld .v { font: 500 18px/1.3 var(--f); }
+#s04_solution .b { position: absolute; inset: 0; }
+#s04_solution .b .h { position: absolute; left: 0; right: 0; top: 110px; text-align: center; }
+#s04_solution .b .h .h2 { margin-top: 14px; }
+.pipe { position: absolute; left: 70px; right: 70px; top: 330px; height: 220px; }
+.pipe svg { position: absolute; inset: 0; overflow: visible; }
+.node { position: absolute; top: 60px; width: 160px; padding: 16px 12px; text-align: center; border-radius: 10px; background: var(--s1); border: 1px solid var(--line2); }
+.node .k { font-size: 9.5px; margin-bottom: 8px; display: block; color: var(--nc, var(--dim)); }
+.node .v { font: 600 16px/1.25 var(--f); }
+.node.lit { border-color: var(--nc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--nc) 15%, transparent), 0 0 40px color-mix(in srgb, var(--nc) 25%, transparent); }
+.gate2 { display: flex; gap: 6px; justify-content: center; margin-top: 4px; }
+.gate2 span { font: 700 11px/1 var(--m); padding: 5px 7px; border-radius: 4px; border: 1px solid; }
+.pulse { position: absolute; left: 0; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--live); box-shadow: 0 0 16px 4px rgba(88,166,255,.6); offset-path: path('M 80 115 L 1220 115'); offset-rotate: 0deg; }
+.underlbl { position: absolute; top: 205px; font: 500 12px/1.4 var(--m); color: var(--dim); letter-spacing: .06em; text-align: center; }
+
+/* ---------- s05 cli ---------- */
+#s05_cli { --glow: rgba(88,166,255,.06); }
+.term { position: absolute; left: 150px; right: 150px; top: 118px; height: 470px; border-radius: 12px; background: #08090b; border: 1px solid var(--line2); box-shadow: 0 40px 90px -30px #000; overflow: hidden; }
+.term .bar { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--s1); }
+.term .bar i { width: 11px; height: 11px; border-radius: 50%; background: var(--s3); }
+.term .bar span { margin-left: 14px; font: 500 12px/1 var(--m); color: var(--dim); letter-spacing: .04em; }
+.term .bar em { margin-left: auto; font: 600 10.5px/1 var(--m); font-style: normal; letter-spacing: .16em; color: var(--valid); border: 1px solid rgba(63,185,80,.45); padding: 5px 8px; border-radius: 4px; }
+.pane { position: absolute; left: 0; right: 0; top: 40px; padding: 18px 26px; font: 400 14.5px/1.62 var(--m); color: #c9c7c1; }
+.pane .ln { white-space: pre; }
+.pane .cmd { color: var(--text); }
+.pane .cmd::before { content: "$ "; color: var(--valid); }
+.pane .sec { color: var(--live); font-weight: 700; margin-top: 6px; }
+.pane .hl-r { color: var(--invalid); font-weight: 700; }
+.pane .hl-g { color: var(--valid); font-weight: 700; }
+.pane .hl-a { color: var(--stale); font-weight: 700; }
+.pane .dimln { color: var(--faint); }
+.badge { display: inline-block; margin-left: 14px; font: 700 11px/1 var(--m); letter-spacing: .14em; padding: 4px 8px; border-radius: 4px; vertical-align: 2px; }
+.badge.r { color: var(--invalid); border: 1px solid var(--invalid); background: rgba(248,81,73,.1); }
+.badge.g { color: var(--valid); border: 1px solid var(--valid); background: rgba(63,185,80,.1); }
+.caret { display: inline-block; width: 9px; height: 17px; background: var(--text); vertical-align: -3px; margin-left: 2px; animation: blink 1s steps(1) infinite; }
+
+/* ---------- s12 why ---------- */
+#s12_why { --glow: rgba(163,113,247,.07); }
+#s12_why .h { position: absolute; left: 120px; top: 100px; }
+#s12_why .h .h2 { margin-top: 14px; }
+.acct { position: absolute; left: 140px; top: 300px; width: 300px; padding: 24px; }
+.acct .k { color: var(--valid); margin-bottom: 12px; display: block; }
+.acct .v { font: 700 24px/1.2 var(--f); }
+.acct .m { margin-top: 12px; font: 400 13px/1.6 var(--m); color: var(--dim); }
+.ro { display: inline-block; margin-top: 14px; font: 700 11px/1 var(--m); letter-spacing: .14em; color: var(--live); border: 1px solid var(--live); padding: 5px 8px; border-radius: 4px; }
+.progs { position: absolute; left: 820px; top: 236px; display: grid; gap: 12px; }
+.prog { width: 380px; height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-radius: 9px; background: var(--s1); border: 1px solid var(--line2); font: 500 15px/1 var(--m); }
+.prog .ok { color: var(--valid); font-weight: 700; font-size: 12px; letter-spacing: .14em; }
+.wires { position: absolute; left: 0; top: 0; }
+.slot { position: absolute; left: 820px; top: 600px; width: 380px; font: 600 11px/1 var(--m); letter-spacing: .16em; color: var(--dim); text-align: center; }
+.cu { position: absolute; left: 140px; top: 520px; width: 560px; }
+.cu .row { display: flex; justify-content: space-between; font: 500 13px/1 var(--m); color: var(--dim); margin-bottom: 10px; }
+.cu .row b { color: var(--text); }
+.cu .track { height: 16px; border-radius: 8px; background: var(--s3); overflow: hidden; position: relative; }
+.cu .track i { position: absolute; left: 0; top: 0; bottom: 0; width: 0.76%; min-width: 5px; background: var(--valid); box-shadow: 0 0 12px var(--valid); transform-origin: left; }
+.cu .big { margin-top: 16px; font: 700 40px/1 var(--m); letter-spacing: -.02em; }
+.cu .big span { font: 500 15px/1 var(--f); color: var(--dim); letter-spacing: 0; margin-left: 10px; }
+
+/* ---------- s13 self ---------- */
+#s13_self { --glow: rgba(248,81,73,.07); }
+#s13_self .h { position: absolute; left: 120px; top: 100px; }
+#s13_self .h .h2 { margin-top: 14px; }
+.selfpp { position: absolute; left: 120px; top: 262px; width: 760px; padding: 30px 34px; }
+.selfpp .r { display: grid; grid-template-columns: 170px 1fr; padding: 12px 0; border-top: 1px solid var(--line); font: 500 18px/1.3 var(--m); }
+.selfpp .r:first-of-type { border-top: 0; }
+.selfpp .r span:first-child { color: var(--dim); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; padding-top: 3px; }
+.selfpp .fx { font-size: 14px; color: var(--dim); line-height: 1.7; }
+.selfpp .fx b { color: var(--invalid); font-weight: 500; }
+.bigstamp { position: absolute; left: 960px; top: 330px; padding: 22px 34px; border: 5px solid var(--invalid); border-radius: 12px; color: var(--invalid); font: 800 58px/1 var(--m); letter-spacing: .1em; }
+.selfnote { position: absolute; left: 930px; top: 480px; width: 400px; font: 500 22px/1.4 var(--f); color: var(--text); }
+.selfnote span { color: var(--dim); display: block; font-size: 15px; margin-top: 12px; font-family: var(--m); }
+
+/* ---------- s14 end ---------- */
+#s14_end { --glow: rgba(88,166,255,.08); }
+#s14_end .wrap { position: absolute; left: 0; right: 0; top: 150px; text-align: center; }
+#s14_end .word { font: 800 104px/1 var(--f); letter-spacing: -.05em; }
+#s14_end .word .life { color: transparent; -webkit-text-stroke: 2px var(--text); }
+#s14_end .tl { margin-top: 20px; font: 500 28px/1.3 var(--f); color: var(--dim); }
+.links { position: absolute; left: 230px; right: 230px; top: 390px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.lk { padding: 18px 22px; border-radius: 10px; border: 1px solid var(--line2); background: var(--s1); }
+.lk .k { display: block; margin-bottom: 10px; }
+.lk .v { font: 500 18px/1.2 var(--m); color: var(--live); }
+.lk .v.w { color: var(--text); }
+#s14_end .chips { position: absolute; left: 0; right: 0; top: 640px; display: flex; gap: 12px; justify-content: center; }
+</style>
+</head>
+<body>
+<div id="root">
+
+<!-- ===================== s01 title ===================== -->
+<section class="scene" id="s01_title">
+  <div class="bgx"></div>
+  <svg class="curve" width="1440" height="810" viewBox="0 0 1440 810">
+    <defs>
+      <linearGradient id="dg" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#3fb950"/><stop offset=".5" stop-color="#d29922"/><stop offset="1" stop-color="#f85149"/>
+      </linearGradient>
+    </defs>
+    <path d="M 60 120 C 360 120, 470 560, 760 640 S 1200 700, 1400 706" fill="none" stroke="url(#dg)" stroke-width="3" opacity=".55"
+      style="--len: 1600; stroke-dasharray: 1600" data-a="draw@0.1" data-d="2.6"/>
+    <line x1="60" x2="1400" y1="413" y2="413" stroke="#2d3238" stroke-dasharray="6 8" data-a="fade@1.2"/>
+    <text x="66" y="104" fill="#3fb950" font-family="JetBrains Mono" font-size="12" letter-spacing="2" data-a="fade@0.4">VALID</text>
+    <text x="1336" y="690" fill="#f85149" font-family="JetBrains Mono" font-size="12" letter-spacing="2" data-a="fade@2.2">STALE</text>
+    <text x="1300" y="404" fill="#5f5e59" font-family="JetBrains Mono" font-size="12" letter-spacing="2" data-a="fade@1.4">t ½</text>
+  </svg>
+  <div class="wrap">
+    <div class="word" data-a="up@0.35" data-d="1.0"><span class="half">Half</span><span class="life">life</span></div>
+    <div class="sub" data-a="up@1.1">A use-by date for cryptographic security.</div>
+    <div class="sub2" data-a="up@1.6">Signed security passports for zero-knowledge circuits — enforced on-chain.</div>
+    <div class="chips">
+      <span class="chip" style="--c: #a371f7" data-a="pop@2.3"><i></i>Solana</span>
+      <span class="chip" style="--c: #58a6ff" data-a="pop@2.5"><i></i>Hyperlane</span>
+      <span class="chip" style="--c: #d29922" data-a="pop@2.7"><i></i>Zcash</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== s02 problem ===================== -->
+<section class="scene" id="s02_problem">
+  <div class="bgx"></div>
+  <div class="brand"><b>Halflife</b><span>demo</span></div>
+  <div class="chap"><i>01</i>The problem</div>
+  <div class="head">
+    <div class="k" data-a="up@0.2">2026 · each had passed professional review</div>
+    <div class="h1" data-a="up@0.35">Four cryptographic systems failed.</div>
+  </div>
+  <div class="rows">
+    <div class="frow" data-a="left@1.0"><span class="d">23 MAR</span><span class="n">Zcash Sprout</span><span class="w">Proof verification skipped entirely</span>
+      <span class="age"><span class="bar" style="width:140px" data-a="grow@1.3" data-d=".9"></span><span class="yrs">4 yrs</span></span></div>
+    <div class="frow" data-a="left@1.7"><span class="d">29 MAY</span><span class="n">Zcash Orchard</span><span class="w">Counterfeiting circuit</span>
+      <span class="age"><span class="bar" style="width:140px" data-a="grow@2.0" data-d=".9"></span><span class="yrs">4 yrs</span></span></div>
+    <div class="frow" data-a="left@2.4"><span class="d">27 JUL</span><span class="n">Aztec V5</span><span class="w">Proving-system soundness</span>
+      <span class="age"><span class="yrs na">—</span></span></div>
+    <div class="frow" data-a="left@3.1"><span class="d">30 JUL</span><span class="n">Coldcard</span><span class="w"><b>$116M</b> drained</span>
+      <span class="age"><span class="bar" style="width:175px" data-a="grow@3.4" data-d=".9"></span><span class="yrs">5 yrs</span></span></div>
+  </div>
+  <div class="tags">
+    <div class="tag" data-a="up@c1+0.1"><span class="k">every flaw</span>was <span class="red">years old</span></div>
+    <div class="tag" data-a="up@c1+1.6"><span class="k">every one</span>was found <span class="blu">with AI assistance</span></div>
+  </div>
+</section>
+
+<!-- ===================== s03 insight ===================== -->
+<section class="scene" id="s03_insight">
+  <div class="bgx"></div>
+  <div class="brand"><b>Halflife</b><span>demo</span></div>
+  <div class="chap"><i>01</i>The problem</div>
+  <div class="ph a" data-o="c2-0.35">
+    <div class="h"><div class="k" data-a="up@0.2">Zcash Orchard · the detail that matters</div><div class="h2" data-a="up@0.35">Same code. Same framework. Different model.</div></div>
+    <div class="cols">
+      <div class="card gen" data-a="left@0.9">
+        <div class="k">previous model generation</div>
+        <div class="t">Scanned Orchard</div>
+        <div class="code">halo2_gadgets · ecc::mul<br>variable-base scalar multiplication</div>
+        <div class="res" data-a="pop@c0+5.2"><span class="dot" style="background: var(--none)"></span><span style="color: var(--dim)">0 findings</span></div>
+      </div>
+      <div class="mid">
+        <div class="eq" data-a="fade@c1"><span>code changed</span><b>0 lines</b></div>
+        <div class="eq" data-a="fade@c1+1.2"><span>capability</span><b class="blu">↑</b></div>
+      </div>
+      <div class="card gen" data-a="right@c1-0.1" style="border-color: rgba(248,81,73,.5)">
+        <div class="k">next model generation</div>
+        <div class="t">Scanned Orchard</div>
+        <div class="code">halo2_gadgets · ecc::mul<br>variable-base scalar multiplication</div>
+        <div class="res" data-a="pop@c1+1.2"><span class="dot" style="background: var(--invalid); box-shadow: 0 0 12px var(--invalid)"></span><span class="red">counterfeiting bug</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="ph b" data-a="fade@c2" data-o="c2+2.25">
+    <div class="h1" data-a="up@c2">An audit is a perishable good.</div>
+    <div class="stampbox">
+      <div class="decay"><i data-a="grow@c2+0.3" data-d="1.6"></i></div>
+      <div class="decay-l" data-a="fade@c2+0.3">AUDITED · 2024 TOOLS</div>
+      <div class="decay-r" data-a="fade@c2+1.6">TODAY'S TOOLS</div>
+      <div class="stamp" data-a="stamp@c2+0.9" data-d=".5">EXPIRED?</div>
+    </div>
+  </div>
+  <div class="ph c" data-a="fade@c2+2.4">
+    <div class="k" data-a="up@c2+2.4">zero-knowledge bugs are silent</div>
+    <div class="h2" data-a="up@c2+2.5" style="margin-top: 14px">A broken circuit still produces a valid-looking proof.</div>
+    <div class="card proofbox" data-a="up@c2+3.2">
+      <div class="r" data-a="fade@c2+3.6"><span>statement</span><span class="red">invalid</span></div>
+      <div class="r" data-a="fade@c2+4.1"><span>proof verifies</span><span class="grn">✓ true</span></div>
+      <div class="r" data-a="fade@c2+4.6"><span>transaction reverts</span><span style="color: var(--dim)">no</span></div>
+      <div class="r" data-a="fade@c2+5.1"><span>block explorer shows</span><span style="color: var(--dim)">nothing</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== s04 solution ===================== -->
+<section class="scene" id="s04_solution">
+  <div class="bgx"></div>
+  <div class="brand"><b>Halflife</b><span>demo</span></div>
+  <div class="chap"><i>02</i>The passport</div>
+  <div class="a" data-o="c1-0.35">
+    <div class="h"><div class="k" data-a="up@0.2">what halflife does</div><div class="h2" data-a="up@0.35">Every circuit gets a passport.</div></div>
+    <div class="card pp" data-a="up@0.9">
+      <div class="top"><span class="t">PassportCore · <span class="mono" style="color: var(--live)">125 bytes</span>, fixed-width</span><span class="seal" data-a="pop@c0+1.6">✓ ED25519 SIGNED</span></div>
+      <div class="strip">
+        <div style="flex: 1" data-a="grow@1.4" data-d=".4">v</div>
+        <div class="hot" style="flex: 32; --hc: #58a6ff" data-a="grow@1.5" data-d=".4">circuit_hash · 32</div>
+        <div style="flex: 32" data-a="grow@1.6" data-d=".4">issuer · 32</div>
+        <div style="flex: 8" data-a="grow@1.7" data-d=".4">seq</div>
+        <div class="hot" style="flex: 2; --hc: #a371f7" data-a="grow@1.8" data-d=".4">C</div>
+        <div class="hot" style="flex: 2; --hc: #3fb950" data-a="grow@1.9" data-d=".4">S</div>
+        <div style="flex: 8" data-a="grow@2.0" data-d=".4">issued</div>
+        <div class="hot" style="flex: 8; --hc: #d29922" data-a="grow@2.1" data-d=".4">expires</div>
+        <div style="flex: 32" data-a="grow@2.2" data-d=".4">evidence_hash · 32</div>
+        <div style="flex: 3" data-a="grow@2.3" data-d=".4">adv</div>
+      </div>
+      <div class="flds">
+        <div class="fld" style="--fc: #a371f7" data-a="up@c0+2.0"><span class="k">what was verified</span><div class="v">capability tier C1 · status · advisory count</div></div>
+        <div class="fld" style="--fc: #58a6ff" data-a="up@c0+3.9"><span class="k">on which build</span><div class="v">circuit_hash + evidence_hash of the closure</div></div>
+        <div class="fld" style="--fc: #d29922" data-a="up@c0+5.6"><span class="k">when it expires</span><div class="v">expires_at — after that, readers treat it as STALE</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="b" data-a="fade@c1-0.2">
+    <div class="h"><div class="k" data-a="up@c1-0.1">the flow</div><div class="h2" data-a="up@c1">From advisory to enforcement</div></div>
+    <div class="pipe">
+      <svg width="1300" height="220"><line x1="80" x2="1220" y1="115" y2="115" stroke="#2d3238" stroke-width="2" style="--len: 1140; stroke-dasharray: 1140" data-a="draw@c1+0.2" data-d="2.2"/></svg>
+      <div class="node" style="left: 0" data-a="up@c1+0.1"><span class="k">1 · lineage</span><div class="v">Dependency closure</div></div>
+      <div class="node" style="left: 190px" data-a="up@c1+0.3"><span class="k">2 · osv</span><div class="v">Advisory match</div></div>
+      <div class="node" style="left: 380px; --nc: #3fb950" data-a="up@c1+0.5"><span class="k">3 · issuer</span><div class="v">Signed passport</div></div>
+      <div class="node lit" style="left: 570px; --nc: #a371f7" data-a="pop@c1+0.7"><span class="k">4 · solana</span><div class="v">Passport registry</div></div>
+      <div class="node lit" style="left: 760px; --nc: #58a6ff" data-a="pop@c1+2.0"><span class="k">5 · hyperlane</span><div class="v">Cross-chain dispatch</div></div>
+      <div class="node" style="left: 950px" data-a="up@c1+2.6"><span class="k">6 · destination</span><div class="v">Mirror registry</div></div>
+      <div class="node lit" style="left: 1140px; --nc: #f85149" data-a="pop@c1+3.9"><span class="k">7 · consumer</span><div class="v">Your program</div>
+        <div class="gate2"><span style="color: var(--valid)">ALLOW</span><span style="color: var(--invalid); background: rgba(248,81,73,.12)">BLOCK</span></div></div>
+      <div class="pulse" data-a="fade@c1+0.6" data-x="travel@c1+0.6:3.3" data-o="c1+3.8"></div>
+      <div class="underlbl" style="left: 570px; width: 160px" data-a="fade@c1+1.0">1,520 CU check</div>
+      <div class="underlbl" style="left: 760px; width: 160px" data-a="fade@c1+2.3">PDA-signed CPI</div>
+      <div class="underlbl" style="left: 1140px; width: 160px" data-a="fade@c1+4.1">no passport → no proceed</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== s05 cli ===================== -->
+<section class="scene" id="s05_cli">
+  <div class="bgx"></div>
+  <div class="brand"><b>Halflife</b><span>demo</span></div>
+  <div class="chap"><i>02</i>The CLI</div>
+  <div class="term" data-a="up@0.05">
+    <div class="bar"><i></i><i></i><i></i><span>~/halflife — OFFLINE=1 ./scripts/demo.sh</span><em>REAL OUTPUT · PINNED OSV SNAPSHOT</em></div>
+    <div class="pane" id="p1" data-o="c1-0.25"></div>
+    <div class="pane" id="p2" data-o="c2-0.25"></div>
+    <div class="pane" id="p3"></div>
+  </div>
+</section>
+
+<!-- ===================== s12 why ===================== -->
+<section class="scene" id="s12_why">
+  <div class="bgx"></div>
+  <div class="brand"><b>Halflife</b><span>demo</span></div>
+  <div class="chap"><i>08</i>Why Solana</div>
+  <div class="h"><div class="k" data-a="up@0.2">sealevel · read-only accounts</div><div class="h2" data-a="up@0.35">One passport. Every program. Same slot.</div></div>
+  <svg class="wires" width="1440" height="810">
+    <g stroke="#3fb950" stroke-width="1.6" fill="none" opacity=".75">
+      <path d="M 440 370 C 620 370, 640 263, 820 263" style="--len: 420; stroke-dasharray: 420" data-a="draw@2.4" data-d=".7"/>
+      <path d="M 440 370 C 620 370, 640 329, 820 329" style="--len: 420; stroke-dasharray: 420" data-a="draw@2.45" data-d=".7"/>
+      <path d="M 440 370 C 620 370, 640 395, 820 395" style="--len: 420; stroke-dasharray: 420" data-a="draw@2.5" data-d=".7"/>
+      <path d="M 440 370 C 620 370, 640 461, 820 461" style="--len: 420; stroke-dasharray: 420" data-a="draw@2.55" data-d=".7"/>
+      <path d="M 440 370 C 620 370, 640 527, 820 527" style="--len: 420; stroke-dasharray: 420" data-a="draw@2.6" data-d=".7"/>
+    </g>
+  </svg>
+  <div class="card acct" data-a="left@0.8">
+    <span class="k">passport account</span>
+    <div class="v">orchard-action-circuit</div>
+    <div class="m">125 B · owner: passport program<br>CkDhRfJRi…tB2 · devnet</div>
+    <span class="ro">READ-ONLY</span>
+  </div>
+  <div class="progs">
+    <div class="prog" data-a="right@1.4">shielded-pool::withdraw<span class="ok" data-a="pop@3.2">CHECKED</span></div>
+    <div class="prog" data-a="right@1.55">bridge::release<span class="ok" data-a="pop@3.2">CHECKED</span></div>
+    <div class="prog" data-a="right@1.7">dex::settle<span class="ok" data-a="pop@3.2">CHECKED</span></div>
+    <div class="prog" data-a="right@1.85">lending::liquidate<span class="ok" data-a="pop@3.2">CHECKED</span></div>
+    <div class="prog" data-a="right@2.0">reference consumer<span class="ok" data-a="pop@3.2">CHECKED</span></div>
+  </div>
+  <div class="slot" data-a="fade@3.4">↑ no write lock · executed in parallel</div>
+  <div class="cu" data-a="up@4.4">
+    <div class="row"><span>passport check · measured</span><span><b>1,520</b> / 200,000 CU</span></div>
+    <div class="track"><i data-a="grow@4.9" data-d=".6"></i></div>
+    <div class="big grn" data-a="fade@5.2">0.76%<span>of a default transaction budget</span></div>
+  </div>
+</section>
+
+<!-- ===================== s13 self ===================== -->
+<section class="scene" id="s13_self">
+  <div class="bgx"></div>
+  <div class="brand"><b>Halflife</b><span>demo</span></div>
+  <div class="chap"><i>09</i>No exemptions</div>
+  <div class="h"><div class="k" data-a="up@0.2">./scripts/self-passport.sh</div><div class="h2" data-a="up@0.35">Halflife's own passport.</div></div>
+  <div class="card selfpp" data-a="up@0.9">
+    <div class="r"><span>circuit</span><span>halflife workspace · own Cargo.lock</span></div>
+    <div class="r"><span>capability</span><span class="mono" style="color: var(--violet)">C1</span></div>
+    <div class="r"><span>closure</span><span><span class="cnt" style="--to: 653; animation: count 1.4s cubic-bezier(.2,.8,.2,1) both" data-ca="1.6"></span> packages</span></div>
+    <div class="r"><span>advisories</span><span class="red"><span class="cnt" style="--to: 15; animation: count 1s ease-out both" data-ca="c1+0.3"></span> published</span></div>
+    <div class="r"><span>findings via</span><span class="fx" data-a="fade@c1+1.0"><b>bincode</b> · <b>curve25519-dalek</b> · <b>ed25519-dalek</b> · <b>rustls-webpki</b><br>through litesvm / solana-sdk in the bench + exercise harnesses</span></div>
+  </div>
+  <div class="bigstamp" data-a="stamp@c1-0.05" data-d=".55">INVALID</div>
+  <div class="selfnote" data-a="up@c1+3.0">Published anyway.<span>docs/self-passport.md</span></div>
+</section>
+
+<!-- ===================== s14 end ===================== -->
+<section class="scene" id="s14_end">
+  <div class="bgx"></div>
+  <div class="wrap">
+    <div class="word" data-a="up@0.15"><span>Half</span><span class="life">life</span></div>
+    <div class="tl" data-a="up@0.6">No claim without measurement.</div>
+  </div>
+  <div class="links">
+    <div class="lk" data-a="up@1.2"><span class="k">live control room</span><div class="v">halflife-control-room.vercel.app</div></div>
+    <div class="lk" data-a="up@1.35"><span class="k">code</span><div class="v">github.com/Nailer/halflife</div></div>
+    <div class="lk" data-a="up@1.5"><span class="k">passport program · devnet</span><div class="v w">CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2</div></div>
+    <div class="lk" data-a="up@1.65"><span class="k">consumer program · devnet</span><div class="v w">BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW</div></div>
+  </div>
+  <div class="chips">
+    <span class="chip" style="--c: #3fb950" data-a="pop@2.1"><i></i>./scripts/verify-all.sh · 32 checks</span>
+    <span class="chip" style="--c: #a371f7" data-a="pop@2.25"><i></i>Solana</span>
+    <span class="chip" style="--c: #58a6ff" data-a="pop@2.4"><i></i>Hyperlane</span>
+    <span class="chip" style="--c: #d29922" data-a="pop@2.55"><i></i>Zcash</span>
+  </div>
+</section>
+
+</div>
+<script>
+// ---- terminal panes for s05: real output of OFFLINE=1 ./scripts/demo.sh ----
+const T = {
+  p1: [
+    ['cmd', 'halflife scan fixtures/orchard-vulnerable --offline --out out/vulnerable'],
+    ['', 'closure   5 packages (4 from registry)'],
+    ['', 'advisory  snapshot:fixtures/osv-snapshot.json'],
+    ['', 'circuit   54630fd6d629dab4ee62c19492afa7394b8a3e4089395228a1d46a8758772594'],
+    ['', 'evidence  4d07eb80e49fa2209678ce62358bb63304324d8e461c9cfa50e6c3ce045e7c60'],
+    ['', 'capability C1  seq 1  disclosure Embargoed'],
+    ['hl-r', 'findings  halo2_gadgets@0.4.0  GHSA-ww9q-8r59-xv46'],
+    ['hl-r', 'findings  orchard@0.13.1  GHSA-ww9q-8r59-xv46'],
+    ['hl-r', 'findings  zcash_primitives@0.27.1  GHSA-ww9q-8r59-xv46'],
+    ['hl-r', 'status    Invalid', 'r', 'SIGNED · INVALID'],
+    ['dimln', 'written   out/vulnerable'],
+  ],
+  p2: [
+    ['cmd', 'halflife scan fixtures/orchard-patched --offline --out out/patched'],
+    ['', 'closure   5 packages (4 from registry)'],
+    ['', 'circuit   3ae211e275bee342e5364fd86bd4cb9b16dfbc9b7bdb2c311e9dda7590497917'],
+    ['', 'findings  none'],
+    ['hl-g', 'status    Valid', 'g', 'SIGNED · VALID'],
+    ['cmd', 'halflife verify out/patched/passport.json --evidence out/patched/evidence.json'],
+    ['', 'signature ok (65LaoPvmSvA7KFWD6ANcoxa1UWiX3uU2rknmzxaFu6Bp)'],
+    ['', 'evidence  binds (5 deps)'],
+    ['hl-g', 'effective Valid'],
+    ['hl-g', 'ACCEPT', 'g', 'CONSUMER PROCEEDS'],
+    ['cmd', 'halflife verify out/vulnerable/passport.json --evidence out/vulnerable/evidence.json'],
+    ['', 'signature ok (65LaoPvmSvA7KFWD6ANcoxa1UWiX3uU2rknmzxaFu6Bp)'],
+    ['hl-r', 'effective Invalid'],
+    ['hl-r', 'BLOCK', 'r', 'CONSUMER REFUSES'],
+  ],
+  p3: [
+    ['dimln', '# forge VALID onto the vulnerable passport'],
+    ['cmd', "python3 -c \"p['core']['status']='VALID'; p['core']['advisory_count']=0 …\""],
+    ['cmd', 'halflife verify out/forged.json'],
+    ['hl-r', 'Error: signature does not verify'],
+    ['hl-r', 'BLOCK — signature does not verify', 'r', 'TAMPER REJECTED'],
+    ['', ''],
+    ['dimln', '# and if no update ever arrives:'],
+    ['cmd', 'halflife verify out/patched/passport.json --at $((EXP + 1))'],
+    ['hl-a', 'effective Stale'],
+    ['hl-a', 'BLOCK — stale, not trusted'],
+  ],
+};
+function buildTerm() {
+  const start = { p1: 'abs:0.5', p2: 'c1-0.1', p3: 'c2-0.1' };
+  for (const [id, lines] of Object.entries(T)) {
+    const el = document.getElementById(id); if (!el) continue;
+    let t = 0, html = '';
+    lines.forEach(([cls, txt, bc, bt]) => {
+      const isCmd = cls === 'cmd';
+      const d = isCmd ? Math.min(0.9, 0.25 + txt.length * 0.008) : 0;
+      const at = `${start[id]}+${t.toFixed(2)}`;
+      html += `<div class="ln ${cls}" data-a="${isCmd ? 'type' : 'fade'}@${at}" data-d="${isCmd ? d.toFixed(2) : '0.12'}" ${isCmd ? 'data-ease="steps(40)"' : ''}>${txt.replace(/</g, '&lt;')}${bc ? `<span class="badge ${bc}" data-a="pop@${start[id]}+${(t + 0.25).toFixed(2)}">${bt}</span>` : ''}</div>`;
+      t += isCmd ? d + 0.25 : 0.075;
+    });
+    el.innerHTML = html;
+  }
+}
+
+// ---- timing: data-a="anim@time" (enter), data-o="time" (exit), data-d duration
+const CUES = JSON.parse(new URLSearchParams(location.search).get('c') || '[]');
+function T_(expr) {
+  expr = String(expr).replace('abs:', '');
+  const m = expr.match(/^([ce])(\d+)(.*)$/);
+  let base = 0, rest = expr;
+  if (m) { const c = CUES[+m[2]] || { start: 0, end: 0 }; base = m[1] === 'c' ? c.start : c.end; rest = m[3]; }
+  if (!rest) return base;
+  return base + rest.match(/[+-]?\d*\.?\d+/g).reduce((a, b) => a + parseFloat(b), 0);
+}
+const DUR = { up: .75, fade: .5, pop: .55, left: .7, right: .7, grow: .8, growy: .8, draw: 1.2, type: .6, stamp: .5 };
+function wire(scene) {
+  scene.querySelectorAll('[data-a], [data-o], [data-ca], [data-x]').forEach((el) => {
+    const parts = [];
+    if (el.dataset.a) {
+      const [name, when] = el.dataset.a.split('@');
+      const d = el.dataset.d || DUR[name];
+      const ease = el.dataset.ease || (name === 'draw' || name === 'grow' ? 'cubic-bezier(.65,0,.35,1)' : 'var(--ease)');
+      parts.push(`${name} ${d}s ${ease} ${T_(when).toFixed(3)}s both`);
+    }
+    if (el.dataset.x) { const [name, rest] = el.dataset.x.split('@'); const [when, d] = rest.split(':'); parts.push(`${name} ${d}s cubic-bezier(.45,0,.2,1) ${T_(when).toFixed(3)}s both`); }
+    if (el.dataset.ca) { el.style.animationDelay = T_(el.dataset.ca).toFixed(3) + 's'; }
+    if (el.dataset.o) parts.push(`out .45s ease ${T_(el.dataset.o).toFixed(3)}s forwards`);
+    if (parts.length) el.style.animation = parts.join(', ');
+  });
+}
+const id = new URLSearchParams(location.search).get('s');
+buildTerm();
+const sc = document.getElementById(id);
+if (sc) { wire(sc); sc.classList.add('on'); }
+</script>
+</body>
+</html>

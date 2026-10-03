@@ -1,0 +1,78 @@
+/* Shared video chrome: captions, chapter tags, callouts. Matches the control
+   room's own tokens so overlays read as part of one instrument. */
+:root {
+  --v-bg: #0b0c0e; --v-surface: #14161a; --v-line: #2d3238; --v-text: #e8e6e1;
+  --v-dim: #8d8b85; --v-faint: #5f5e59; --v-valid: #3fb950; --v-stale: #d29922;
+  --v-invalid: #f85149; --v-live: #58a6ff;
+  --v-f: "Archivo", system-ui, sans-serif; --v-m: "JetBrains Mono", ui-monospace, monospace;
+  --v-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+#v-layer { position: fixed; inset: 0; pointer-events: none; z-index: 99999; font-family: var(--v-f); }
+
+/* bottom vignette so captions sit on calm ground */
+#v-layer .v-vig { position: absolute; left: 0; right: 0; bottom: 0; height: 250px;
+  background: linear-gradient(to top, rgba(11,12,14,1) 0%, rgba(11,12,14,.97) 52%, rgba(11,12,14,0) 100%); }
+
+/* captions */
+.v-cap { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%);
+  max-width: 1060px; width: max-content; text-align: center; color: #f2f0eb;
+  font: 500 23px/1.38 var(--v-f); letter-spacing: -0.005em; text-wrap: balance;
+  padding: 10px 22px 11px; border-radius: 10px; background: rgba(14,15,18,.72);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 12px 30px -12px rgba(0,0,0,.8);
+  animation: vCapIn .38s var(--v-ease) both; }
+.v-cap.out { animation: vCapOut .25s ease both; }
+@keyframes vCapIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes vCapOut { from { opacity: 1; } to { opacity: 0; transform: translate(-50%, 4px); } }
+
+/* chapter tag */
+.v-chap { position: absolute; left: 28px; bottom: 112px; display: flex; align-items: center; gap: 12px;
+  animation: vChapIn .6s var(--v-ease) both; }
+.v-chap .n { font: 700 11px/1 var(--v-m); letter-spacing: .16em; color: var(--v-bg); background: var(--v-text);
+  padding: 6px 8px; border-radius: 4px; }
+.v-chap .t { font: 600 13px/1 var(--v-m); letter-spacing: .18em; text-transform: uppercase; color: var(--v-text); }
+.v-chap .s { font: 400 12px/1 var(--v-m); letter-spacing: .08em; color: var(--v-dim); }
+@keyframes vChapIn { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+
+/* cursor */
+.v-cursor { position: absolute; left: 0; top: 0; width: 26px; height: 26px; transition-property: transform;
+  transition-timing-function: cubic-bezier(0.45, 0, 0.2, 1); filter: drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
+.v-cursor svg { display: block; transform-origin: 4px 3px; }
+.v-cursor.press svg { animation: vPress .32s ease; }
+@keyframes vPress { 0% { transform: scale(1); } 40% { transform: scale(.82); } 100% { transform: scale(1); } }
+.v-ripple { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%;
+  border: 2px solid var(--v-live); animation: vRipple .7s var(--v-ease) forwards; }
+@keyframes vRipple { from { opacity: .95; transform: scale(.4); } to { opacity: 0; transform: scale(3.2); } }
+
+/* highlight ring */
+.v-ring { position: absolute; border-radius: 10px; border: 2px solid var(--c, var(--v-live));
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--c, var(--v-live)) 18%, transparent), 0 0 34px color-mix(in srgb, var(--c, var(--v-live)) 30%, transparent);
+  animation: vRingIn .55s var(--v-ease) both; }
+.v-ring.out { animation: vFadeOut .35s ease both; }
+@keyframes vRingIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
+@keyframes vFadeOut { to { opacity: 0; } }
+
+/* callout card */
+.v-call { position: absolute; min-width: 260px; max-width: 460px; padding: 16px 20px 17px;
+  background: rgba(20,22,26,.94); border: 1px solid var(--v-line); border-left: 3px solid var(--c, var(--v-live));
+  border-radius: 10px; box-shadow: 0 24px 60px -20px rgba(0,0,0,.95), 0 0 0 1px rgba(255,255,255,.03);
+  animation: vCallIn .6s var(--v-ease) both; }
+.v-call.out { animation: vFadeOut .35s ease both; }
+.v-call .k { font: 600 10.5px/1 var(--v-m); letter-spacing: .18em; text-transform: uppercase; color: var(--c, var(--v-live)); }
+.v-call .v { margin-top: 9px; font: 700 34px/1 var(--v-m); color: var(--v-text); letter-spacing: -0.02em; }
+.v-call .d { margin-top: 9px; font: 400 14px/1.45 var(--v-f); color: var(--v-dim); }
+@keyframes vCallIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* full-width banner (the thesis line) */
+.v-banner { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  padding: 30px 46px; border-radius: 14px; background: rgba(11,12,14,.93);
+  border: 1px solid color-mix(in srgb, var(--c, var(--v-stale)) 55%, transparent);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--c, var(--v-stale)) 10%, transparent), 0 40px 90px -20px #000;
+  text-align: center; animation: vBanIn .7s var(--v-ease) both; }
+.v-banner .k { font: 600 11px/1 var(--v-m); letter-spacing: .22em; color: var(--c, var(--v-stale)); text-transform: uppercase; }
+.v-banner .v { margin-top: 14px; font: 700 40px/1.12 var(--v-f); letter-spacing: -0.025em; color: var(--v-text); }
+@keyframes vBanIn { from { opacity: 0; transform: translate(-50%, -46%) scale(.97); } to { opacity: 1; transform: translate(-50%, -50%); } }
+.v-dim { position: absolute; inset: 0; background: rgba(5,6,8,.62); animation: vDimIn .6s ease both; }
+@keyframes vDimIn { from { opacity: 0; } }
+
+/* scene fade-in from black */
+.v-fade { position: absolute; inset: 0; background: #0b0c0e; animation: vFadeOut .5s ease .05s both; }
