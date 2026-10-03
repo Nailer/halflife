@@ -63,6 +63,24 @@ enum Cmd {
         #[arg(long, default_value_t = 45)]
         ttl: i64,
     },
+    /// Publish a passport for a registered circuit, so the fleet and the chain
+    /// agree.
+    ///
+    /// Without this, a circuit can be registered locally and absent on chain --
+    /// which is correct behaviour but makes the live read report "not found"
+    /// for everything in the fleet.
+    Publish {
+        /// Circuit hash, hex.
+        circuit: String,
+        #[arg(long, default_value = "valid")]
+        status: String,
+        #[arg(long, default_value_t = 86_400)]
+        ttl: i64,
+        #[arg(long, default_value = "solana/deploy-keypair.json")]
+        payer: PathBuf,
+        #[arg(long, default_value = DEVNET)]
+        rpc: String,
+    },
     /// Print the canonical 125 bytes of a passport as it exists on chain.
     ///
     /// Used to drive the destination chain with bytes that genuinely came from
@@ -291,6 +309,32 @@ fn main() -> Result<()> {
             let p = ex.save(&out)?;
             println!("\nrecord  {}", p.display());
             println!("verify  halflife-exercise verify {}", p.display());
+            Ok(())
+        }
+        Cmd::Publish { circuit, status, ttl, payer, rpc } => {
+            let ctx = Ctx::new(&rpc, &payer)?;
+            let hash: [u8; 32] = hex::decode(&circuit)
+                .context("circuit hash is not hex")?
+                .try_into()
+                .map_err(|_| anyhow!("circuit hash must be 32 bytes"))?;
+            if let Some((sig, _)) = ctx.ensure_issuer()? {
+                println!("issuer registered  {}", &sig[..16]);
+            }
+            let st = match status.to_lowercase().as_str() {
+                "invalid" => Status::Invalid,
+                _ => Status::Valid,
+            };
+            let seq = ctx.next_sequence(&hash)?;
+            let c = core(hash, ctx.issuer_pub(), seq, st, ledger::now(), ttl);
+            let (sig, slot) = ctx.publish(&c)?;
+            println!(
+                "published  {} seq {} {:?}  slot {}  {}",
+                &hex::encode(hash)[..16],
+                seq,
+                st,
+                slot,
+                &sig[..16]
+            );
             Ok(())
         }
         Cmd::Fetch { circuit, rpc } => fetch(circuit.as_deref(), &rpc),

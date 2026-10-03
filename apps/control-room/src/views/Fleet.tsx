@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Circuit, State } from "../types";
 import { Search } from "../icons";
+import { LiveRead } from "../LiveRead";
 
 export function Fleet({ state }: { state: State | null }) {
   const [q, setQ] = useState("");
@@ -56,6 +57,7 @@ export function Fleet({ state }: { state: State | null }) {
           </div>
         </div>
 
+        <div className="col">
         <div className="card">
           <header><h2>Circuit detail</h2></header>
           {current ? (
@@ -87,6 +89,9 @@ export function Fleet({ state }: { state: State | null }) {
           ) : (
             <div className="body"><p className="note">No circuits registered.</p></div>
           )}
+        </div>
+
+        <LiveRead circuitHash={current?.circuitHash} issuerHex={current?.issuer} />
         </div>
       </div>
     </div>

@@ -12,7 +12,7 @@
       "proofSystem": "halo2",
       "repository": "https://crates.io/crates/orchard",
       "sequence": "2",
-      "status": "VALID"
+      "status": "STALE"
     },
     {
       "capability": 1,
@@ -25,7 +25,7 @@
       "proofSystem": "halo2",
       "repository": "https://github.com/zcash/orchard",
       "sequence": "2",
-      "status": "VALID"
+      "status": "STALE"
     },
     {
       "capability": 1,
@@ -51,7 +51,7 @@
       "proofSystem": "halo2",
       "repository": "https://crates.io/crates/voting-crypto-deps",
       "sequence": "2",
-      "status": "VALID"
+      "status": "STALE"
     }
   ],
   "dependencies": [
@@ -283,7 +283,7 @@
       "started_at": 1790859373
     }
   ],
-  "generatedAt": "1790986530",
+  "generatedAt": "1791034409",
   "measured": {
     "consumerCheckCu": 1520,
     "publishCu": 11550,

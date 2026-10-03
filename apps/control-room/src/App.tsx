@@ -43,6 +43,12 @@ const STEPS: TourStep[] = [
     body: "A real exercise recorded against Solana devnet, replayed at the gaps in its own record. The signatures link to the live explorer — these transactions actually happened.",
   },
   {
+    target: "liveread",
+    view: "fleet",
+    title: "Is any of this real?",
+    body: "Fair question. Everything else on the page comes from a file the CLI exported. Press Read from devnet and your browser queries Solana directly, pulls the actual passport account and decodes it here — no file, no server of ours in between.",
+  },
+  {
     target: "audience",
     view: "overview",
     title: "Public vs operator",
