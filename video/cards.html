@@ -204,7 +204,7 @@ html, body { width: 1440px; height: 810px; overflow: hidden; background: var(--b
 .selfpp { position: absolute; left: 120px; top: 262px; width: 760px; padding: 30px 34px; }
 .selfpp .r { display: grid; grid-template-columns: 170px 1fr; padding: 12px 0; border-top: 1px solid var(--line); font: 500 18px/1.3 var(--m); }
 .selfpp .r:first-of-type { border-top: 0; }
-.selfpp .r span:first-child { color: var(--dim); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; padding-top: 3px; }
+.selfpp .r > span:first-child { color: var(--dim); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; padding-top: 3px; }
 .selfpp .fx { font-size: 14px; color: var(--dim); line-height: 1.7; }
 .selfpp .fx b { color: var(--invalid); font-weight: 500; }
 .bigstamp { position: absolute; left: 960px; top: 330px; padding: 22px 34px; border: 5px solid var(--invalid); border-radius: 12px; color: var(--invalid); font: 800 58px/1 var(--m); letter-spacing: .1em; }
@@ -410,6 +410,7 @@ html, body { width: 1440px; height: 810px; overflow: hidden; background: var(--b
     <div class="m">125 B · owner: passport program<br>CkDhRfJRi…tB2 · devnet</div>
     <span class="ro">READ-ONLY</span>
   </div>
+  <div class="k" style="position: absolute; left: 820px; top: 206px; font-size: 10px" data-a="fade@1.4">consumers · illustrative, except the deployed reference consumer</div>
   <div class="progs">
     <div class="prog" data-a="right@1.4">shielded-pool::withdraw<span class="ok" data-a="pop@3.2">CHECKED</span></div>
     <div class="prog" data-a="right@1.55">bridge::release<span class="ok" data-a="pop@3.2">CHECKED</span></div>
