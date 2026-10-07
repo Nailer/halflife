@@ -6,8 +6,9 @@ Live tracking of our obligations under [`disclosure-policy.md`](disclosure-polic
 
 **Four published crates in the registry resolve to `halo2_gadgets` versions
 affected by [GHSA-ww9q-8r59-xv46](https://osv.dev/vulnerability/GHSA-ww9q-8r59-xv46).**
-They are not named on any public surface, and this repository is private, until
-the notification period has run.
+They are not named in the live control room's exports. They **are** named in
+this repository's test fixtures, and the repository is public (see "Where this is
+still inconsistent" below).
 
 | | |
 |---|---|
@@ -16,7 +17,7 @@ the notification period has run.
 | Notice period | 14 days from notification |
 | Public naming permitted | 14 days after notification |
 
-## Why the repository is private
+## Why the repository was private
 
 Pushing this repository publicly would name those four projects as affected.
 Our own policy calls that a disclosure — *"this advisory exists"* and *"these
@@ -28,6 +29,12 @@ We considered amending the policy so the dates worked out. We did not, because a
 project whose premise is *no claim without measurement* cannot quietly relax its
 own rules when they become inconvenient. The policy was written first precisely
 so it would bind under pressure.
+
+**It was then made public anyway**, before any maintainer notice had gone out,
+because the hackathon judges on open source and a private repository forfeits
+that. So this document's original position (private until the clock has run) was
+not kept, and the section below records the consequence rather than pretending
+otherwise.
 
 ## How the finding is presented before the clock runs
 

@@ -34,12 +34,13 @@ const CONSUMER_ID: &str = "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW";
 /// Anchor numbers custom errors from 6000 in declaration order. Resolving them
 /// here turns `Custom(6013)` into evidence a reader can check.
 fn error_name(raw: &str) -> String {
-    const PASSPORT: [&str; 14] = [
+    const PASSPORT: [&str; 18] = [
         "UnsupportedVersion", "UnknownStatus", "UnknownCapability", "IssuerMismatch",
         "IssuerRevoked", "AlreadyRevoked", "MissingSignatureInstruction",
         "MalformedSignatureInstruction", "SignerMismatch", "SignedMessageMismatch",
         "IssuedInFuture", "ExpiryBeforeIssuance", "IssuedBeforeRegistration",
-        "SequenceNotIncreasing",
+        "SequenceNotIncreasing", "CircuitMismatch", "MailboxMismatch", "NotAdmin",
+        "UnknownMailbox",
     ];
     const CONSUMER: [&str; 4] = [
         "WrongCircuit", "InsufficientCapability", "PassportStale", "PassportInvalid",
@@ -52,6 +53,27 @@ fn error_name(raw: &str) -> String {
     // Instruction index 1 is the passport program; 0 is the consumer.
     let table: &[&str] = if raw.contains("InstructionError(1") { &PASSPORT } else { &CONSUMER };
     table.get(idx).map(|n| (*n).to_string()).unwrap_or_else(|| raw.into())
+}
+
+/// Resolve a passport-program custom error code to its name, whichever
+/// instruction index it surfaced at.
+fn passport_error_name(raw: &str) -> String {
+    const NAMES: [&str; 18] = [
+        "UnsupportedVersion", "UnknownStatus", "UnknownCapability", "IssuerMismatch",
+        "IssuerRevoked", "AlreadyRevoked", "MissingSignatureInstruction",
+        "MalformedSignatureInstruction", "SignerMismatch", "SignedMessageMismatch",
+        "IssuedInFuture", "ExpiryBeforeIssuance", "IssuedBeforeRegistration",
+        "SequenceNotIncreasing", "CircuitMismatch", "MailboxMismatch", "NotAdmin",
+        "UnknownMailbox",
+    ];
+    raw.split("Custom(")
+        .nth(1)
+        .and_then(|r| r.split(')').next())
+        .and_then(|c| c.parse::<usize>().ok())
+        .and_then(|c| c.checked_sub(6000))
+        .and_then(|i| NAMES.get(i))
+        .map(|n| (*n).to_string())
+        .unwrap_or_else(|| raw.to_string())
 }
 
 /// Anchor dispatches on the first eight bytes of `sha256("global:<name>")`.
@@ -150,6 +172,31 @@ impl Bench {
         }
     }
 
+    fn send_with(&mut self, ixs: Vec<Instruction>, extra: &[&Keypair], label: &str) -> Result<u64> {
+        let blockhash = self.svm.latest_blockhash();
+        let mut signers: Vec<&Keypair> = vec![&self.payer];
+        signers.extend_from_slice(extra);
+        let tx = Transaction::new_signed_with_payer(&ixs, Some(&self.payer.pubkey()), &signers, blockhash);
+        match self.svm.send_transaction(tx) {
+            Ok(r) => Ok(r.compute_units_consumed),
+            Err(e) => Err(anyhow!("{label} failed: {:?}\n{:#?}", e.err, e.meta.logs)),
+        }
+    }
+
+    /// An attempt that is *supposed* to be refused. Returns the passport
+    /// program's error name, and errors if the transaction unexpectedly landed.
+    fn refused(&mut self, ixs: Vec<Instruction>, extra: &[&Keypair]) -> Result<String> {
+        self.svm.expire_blockhash();
+        let blockhash = self.svm.latest_blockhash();
+        let mut signers: Vec<&Keypair> = vec![&self.payer];
+        signers.extend_from_slice(extra);
+        let tx = Transaction::new_signed_with_payer(&ixs, Some(&self.payer.pubkey()), &signers, blockhash);
+        match self.svm.send_transaction(tx) {
+            Ok(_) => Err(anyhow!("an attack landed: the transaction was accepted")),
+            Err(e) => Ok(passport_error_name(&format!("{:?}", e.err))),
+        }
+    }
+
     /// Same failure path, but expected — returns the cost anyway.
     fn send_expecting_failure(&mut self, ixs: Vec<Instruction>) -> Result<(u64, String)> {
         let blockhash = self.svm.latest_blockhash();
@@ -210,19 +257,25 @@ fn main() -> Result<()> {
     println!("consumer program  {}", b.consumer_program);
     println!();
 
-    // ---- register the issuer -------------------------------------------
-    let mut data = discriminator("register_issuer").to_vec();
-    data.extend_from_slice(&issuer_pub);
+    // ---- the registry needs an admin before anything else ----------------
+    let config_pda = Pubkey::find_program_address(&[b"config"], &b.passport_program).0;
     let cu = b.send(
         vec![Instruction {
             program_id: b.passport_program,
             accounts: vec![
-                AccountMeta::new(issuer_pda, false),
+                AccountMeta::new(config_pda, false),
                 AccountMeta::new(b.payer.pubkey(), true),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
-            data,
+            data: discriminator("init_config").to_vec(),
         }],
+        "init_config",
+    )?;
+    println!("  init_config                {cu:>7} CU");
+
+    // ---- register the issuer, proving control of its key -------------------
+    let cu = b.send(
+        register_issuer_ixs(&b, &issuer_key, issuer_pub, &b.payer.pubkey(), issuer_pda),
         "register_issuer",
     )?;
     println!("  register_issuer            {cu:>7} CU");
@@ -317,6 +370,97 @@ fn main() -> Result<()> {
     println!("  consumer BLOCKED (stale)   {stale_cu:>7} CU   {}", error_name(&stale_err));
     println!("                                     no invalidation was published");
 
+    // ---- access control: both holes that existed are closed ----------------
+    //
+    // These are not hypothetical. An earlier version of this program let anyone
+    // set a dispatch route (choosing the program that receives the registry's
+    // dispatch signature) and let anyone register somebody else's public key as
+    // an issuer. Each is attempted here by a keypair with no authority.
+    println!();
+    println!("  access control");
+    let attacker = Keypair::new();
+    b.svm.airdrop(&attacker.pubkey(), 5_000_000_000)
+        .map_err(|e| anyhow!("airdrop failed: {e:?}"))?;
+
+    let devnet_mailbox = Pubkey::from_str("5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54")?;
+    let recipient = [0xEE; 32];
+
+    // 1. A non-admin cannot set a route.
+    let e1 = b.refused(
+        vec![set_route_ix(&b, &attacker.pubkey(), 84532, recipient, devnet_mailbox)],
+        &[&attacker],
+    )?;
+    println!("    set_route by a non-admin          refused   {e1}");
+    if e1 != "NotAdmin" { return Err(anyhow!("expected NotAdmin, got {e1}")); }
+
+    // 2. Even the admin cannot aim the dispatch signature at an unknown program.
+    let hostile = Pubkey::new_unique();
+    let e2 = b.refused(
+        vec![set_route_ix(&b, &b.payer.pubkey(), 84532, recipient, hostile)],
+        &[],
+    )?;
+    println!("    set_route to an unknown mailbox   refused   {e2}");
+    if e2 != "UnknownMailbox" { return Err(anyhow!("expected UnknownMailbox, got {e2}")); }
+
+    // 3. The admin can set a route to a real Hyperlane mailbox.
+    b.svm.expire_blockhash();
+    let cu = b.send(
+        vec![set_route_ix(&b, &b.payer.pubkey(), 84532, recipient, devnet_mailbox)],
+        "set_route",
+    )?;
+    println!("    set_route by the admin            accepted  {cu} CU");
+
+    // 4. The config cannot be initialised a second time to seize the admin role.
+    b.svm.expire_blockhash();
+    let again = b.refused(
+        vec![Instruction {
+            program_id: b.passport_program,
+            accounts: vec![
+                AccountMeta::new(config_pda, false),
+                AccountMeta::new(attacker.pubkey(), true),
+                AccountMeta::new_readonly(system_program::ID, false),
+            ],
+            data: discriminator("init_config").to_vec(),
+        }],
+        &[&attacker],
+    )?;
+    println!("    init_config a second time         refused   {again}");
+
+    // 5. Nobody can register a victim's public key without holding its secret.
+    let victim = SigningKey::from_bytes(&[42u8; 32]);
+    let victim_pub = victim.verifying_key().to_bytes();
+    let victim_pda = b.issuer_pda(&victim_pub);
+    let attacker_sk = SigningKey::from_bytes(&[99u8; 32]);
+    let e5 = b.refused(
+        // The attacker signs with their own key but names the victim's.
+        register_issuer_ixs(&b, &attacker_sk, victim_pub, &attacker.pubkey(), victim_pda),
+        &[&attacker],
+    )?;
+    println!("    registering a key you don't hold  refused   {e5}");
+    if e5 != "SignerMismatch" { return Err(anyhow!("expected SignerMismatch, got {e5}")); }
+
+    // 6. Skipping the proof entirely.
+    let mut bare = register_issuer_ixs(&b, &victim, victim_pub, &attacker.pubkey(), victim_pda);
+    bare.remove(0);
+    let e6 = b.refused(bare, &[&attacker])?;
+    println!("    registering with no proof         refused   {e6}");
+    if e6 != "MissingSignatureInstruction" { return Err(anyhow!("expected MissingSignatureInstruction, got {e6}")); }
+
+    // 7. A proof made for one authority is useless to another.
+    let stolen = register_issuer_ixs(&b, &victim, victim_pub, &b.payer.pubkey(), victim_pda);
+    let e7 = b.refused(
+        // Replay the victim's proof (bound to the payer) under the attacker.
+        vec![stolen[0].clone(), {
+            let mut ix = stolen[1].clone();
+            ix.accounts[1] = AccountMeta::new(attacker.pubkey(), true);
+            ix
+        }],
+        &[&attacker],
+    )?;
+    println!("    replaying a proof as someone else refused   {e7}");
+    if e7 != "SignedMessageMismatch" { return Err(anyhow!("expected SignedMessageMismatch, got {e7}")); }
+    println!();
+
     // ---- the dispatch body must be the bytes that were signed -------------
     //
     // The program re-encodes the stored passport to 125 bytes before handing it
@@ -356,6 +500,57 @@ fn main() -> Result<()> {
     println!("Measured with litesvm against the SBF artifacts from `anchor build`.");
     println!("Reproduce: cargo run --release -p halflife-bench");
     Ok(())
+}
+
+const REGISTER_DOMAIN: &[u8] = b"halflife-register-issuer-v1";
+
+/// An issuer registration: the issuer key signs `REGISTER_DOMAIN || authority`,
+/// then the program instruction. `claimed` is the key the instruction names, and
+/// is separate from `signer` so an attack can claim a key it does not hold.
+fn register_issuer_ixs(
+    b: &Bench,
+    signer: &SigningKey,
+    claimed: [u8; 32],
+    authority: &Pubkey,
+    issuer_pda: Pubkey,
+) -> Vec<Instruction> {
+    let mut msg = Vec::new();
+    msg.extend_from_slice(REGISTER_DOMAIN);
+    msg.extend_from_slice(authority.as_ref());
+    let mut data = discriminator("register_issuer").to_vec();
+    data.extend_from_slice(&claimed);
+    vec![
+        ed25519_instruction(signer, &msg),
+        Instruction {
+            program_id: b.passport_program,
+            accounts: vec![
+                AccountMeta::new(issuer_pda, false),
+                AccountMeta::new(*authority, true),
+                AccountMeta::new_readonly(instructions_sysvar::ID, false),
+                AccountMeta::new_readonly(system_program::ID, false),
+            ],
+            data,
+        },
+    ]
+}
+
+fn set_route_ix(b: &Bench, admin: &Pubkey, domain: u32, recipient: [u8; 32], mailbox: Pubkey) -> Instruction {
+    let route = Pubkey::find_program_address(&[b"route", &domain.to_le_bytes()], &b.passport_program).0;
+    let config = Pubkey::find_program_address(&[b"config"], &b.passport_program).0;
+    let mut data = discriminator("set_route").to_vec();
+    data.extend_from_slice(&domain.to_le_bytes());
+    data.extend_from_slice(&recipient);
+    data.extend_from_slice(mailbox.as_ref());
+    Instruction {
+        program_id: b.passport_program,
+        accounts: vec![
+            AccountMeta::new(route, false),
+            AccountMeta::new_readonly(config, false),
+            AccountMeta::new(*admin, true),
+            AccountMeta::new_readonly(system_program::ID, false),
+        ],
+        data,
+    }
 }
 
 fn signing_message(c: &PassportCore) -> Vec<u8> {

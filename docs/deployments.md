@@ -98,3 +98,32 @@ is exercised exactly as in production. It does **not** stand in for the
 validator set, the relayer, or the aggregation of real attestations. Those live
 off-chain and a local chain cannot replace them. It exercises the delivery path,
 not the security of delivery.
+
+
+## Hyperlane dispatch, real, on devnet
+
+The registry's `dispatch` instruction CPI'd into Hyperlane's deployed devnet
+mailbox and was accepted. Evidence is committed in
+`exercises/hyperlane-dispatch-*.json` and re-checkable:
+
+```bash
+./target/release/halflife-exercise verify-dispatch exercises/hyperlane-dispatch-*.json
+```
+
+That re-reads the message account **owned by Hyperlane's mailbox** (not by us)
+and checks the sender is the passport program and the body is the recorded 125
+bytes.
+
+| | |
+|---|---|
+| Registry admin | `Azh9zR13hCQiDYuSWZxJNmxarLzdr7uZrfohtUwMVPsh` (also the upgrade authority) |
+| Route | domain `84532` (Base Sepolia) → placeholder recipient |
+| Origin | Solana devnet, Hyperlane domain `1399811151` |
+
+The recipient is a **placeholder**: no destination registry is deployed on a
+public chain and no relayer was paid to deliver. The origin leg is real; the
+destination leg is not demonstrated.
+
+The admin and the upgrade authority are the same single key. `init_config` is
+first-caller-wins and was run in the same step as the upgrade. Both are recorded
+as unsolved in `docs/security-notes.md`.

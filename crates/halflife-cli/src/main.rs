@@ -528,6 +528,7 @@ fn export(registry: &Path, exercises: &Path, out: &Path, operator: bool) -> Resu
     }
 
     let mut records = Vec::new();
+    let mut dispatches = Vec::new();
     if exercises.is_dir() {
         let mut files: Vec<_> = std::fs::read_dir(exercises)?
             .filter_map(|e| e.ok().map(|e| e.path()))
@@ -536,7 +537,14 @@ fn export(registry: &Path, exercises: &Path, out: &Path, operator: bool) -> Resu
         files.sort();
         for f in files {
             if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&std::fs::read(&f)?) {
-                records.push(v);
+                // The directory holds more than one kind of record. An exercise
+                // has an id and events; a Hyperlane dispatch does not. Mixing
+                // them would hand the interface a shape it cannot render.
+                if v.get("kind").and_then(|k| k.as_str()) == Some("HYPERLANE_DISPATCH") {
+                    dispatches.push(v);
+                } else if v.get("exercise_id").is_some() && v.get("events").is_some() {
+                    records.push(v);
+                }
             }
         }
     }
@@ -547,6 +555,7 @@ fn export(registry: &Path, exercises: &Path, out: &Path, operator: bool) -> Resu
         "circuits": circuits,
         "dependencies": deps,
         "exercises": records,
+        "hyperlaneDispatches": dispatches,
         "deployments": {
             "solanaDevnet": {
                 "passportProgram": "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2",

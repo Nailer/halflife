@@ -13,7 +13,7 @@ repo. Skip the tour if it appears — you are giving it yourself.
 cd ~/Documents/Github/halflife && ./scripts/verify-all.sh
 ```
 
-Leave the `32 passed · 0 failed` on screen if you want a cold open. If anything
+Leave the `39 passed · 0 failed` on screen if you want a cold open. If anything
 is red, stop and fix it rather than talking over it.
 
 ---

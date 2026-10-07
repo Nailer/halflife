@@ -123,3 +123,13 @@ with it, the demo proves Halflife discriminates.
 claim the Solana layer rests on (E2). The figure includes account
 deserialization and instruction dispatch — bracketing only the comparisons would
 produce a smaller number nobody could reproduce in practice.
+
+## Added 7 October 2026
+
+| # | Commitment | Enforced at |
+|---|---|---|
+| X1 | Only the registry can speak as the registry: routes are admin-only **and** the mailbox must be a known Hyperlane mailbox | `set_route`, `dispatch`; six attack tests in the bench |
+| X2 | Nobody can register an issuer key they do not hold | `register_issuer` ed25519 proof |
+| X3 | Hyperlane delivery to a destination chain is **not** claimed; the origin leg is | README, submission, interface |
+| X4 | We do not claim a hackathon track we do not fit | Zcash track dropped: no ZEC or chain integration |
+| L8 | `init_config` is first-caller-wins; the upgrade authority is a single key; no external audit | `docs/security-notes.md` |

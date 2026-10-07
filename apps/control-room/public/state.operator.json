@@ -395,7 +395,32 @@
       "started_at": 1790859373
     }
   ],
-  "generatedAt": "1791034409",
+  "generatedAt": "1791373094",
+  "hyperlaneDispatches": [
+    {
+      "body_hex": "0154630fd6d629dab4ee62c19492afa7394b8a3e4089395228a1d46a875877259466be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a01000000000000000102f303c16a00000000f390e86a0000000044444444444444444444444444444444444444444444444444444444444444440100",
+      "circuit_hash": "54630fd6d629dab4ee62c19492afa7394b8a3e4089395228a1d46a8758772594",
+      "cluster": "devnet",
+      "destination_domain": 84532,
+      "dispatched_at": 1791372765,
+      "kind": "HYPERLANE_DISPATCH",
+      "limits": [
+        "The origin leg is real: our program CPI'd into Hyperlane's deployed devnet mailbox, which accepted it with our program as sender.",
+        "Delivery to a destination chain is NOT demonstrated: no destination registry is deployed on a public chain, the recipient is a placeholder, and no relayer was paid to deliver."
+      ],
+      "mailbox": "5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54",
+      "mailbox_message_account": "3hyk9cAo5Z1TCxAEhAgmk4btBM9U3JhbPHVUW7pCcbYY",
+      "message_id": "0xbf2a31c24113869bd8a26b80c6b91faecd63224223de8668568ec13966e8abc5",
+      "nonce": 16,
+      "origin_domain": 1399811151,
+      "passport_account": "B1NNYbeNFKkN3nYFNPf85ypw87RDLPsn7kQvGBVwKusU",
+      "recipient": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "recipient_is_placeholder": true,
+      "sender": "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2",
+      "slot": 508440680,
+      "transaction": "w1WP5rrhXeWDsLmZemcTCy359FUjTjRmLUQSMEtcrLu5XeEPWB2y9apqTkB3YM2uC5jbojKzHNXfL88NuyTrwjk"
+    }
+  ],
   "measured": {
     "consumerCheckCu": 1520,
     "publishCu": 11550,

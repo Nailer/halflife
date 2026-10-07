@@ -38,6 +38,8 @@ use std::str::FromStr;
 const PASSPORT_ID: &str = "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2";
 const CONSUMER_ID: &str = "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW";
 const DEVNET: &str = "https://api.devnet.solana.com";
+const HYPERLANE_DEVNET_MAILBOX: &str = "5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54";
+const SPL_NOOP: &str = "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
 
 #[derive(Parser)]
 #[command(name = "halflife-exercise", about = "Controlled threat-scenario execution")]
@@ -63,6 +65,43 @@ enum Cmd {
         #[arg(long, default_value_t = 45)]
         ttl: i64,
     },
+    /// Create the registry config. The caller becomes admin, so run this in the
+    /// same step as deployment.
+    InitConfig {
+        #[arg(long, default_value = "solana/deploy-keypair.json")]
+        payer: PathBuf,
+        #[arg(long, default_value = DEVNET)]
+        rpc: String,
+    },
+    /// Point a destination domain at a Hyperlane mailbox and recipient.
+    SetRoute {
+        #[arg(long, default_value_t = 84532)]
+        domain: u32,
+        /// bytes32 recipient, hex. Defaults to an obviously synthetic
+        /// placeholder: no destination registry is deployed on a public chain.
+        #[arg(long, default_value = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")]
+        recipient: String,
+        #[arg(long, default_value = HYPERLANE_DEVNET_MAILBOX)]
+        mailbox: String,
+        #[arg(long, default_value = "solana/deploy-keypair.json")]
+        payer: PathBuf,
+        #[arg(long, default_value = DEVNET)]
+        rpc: String,
+    },
+    /// Dispatch a passport through the real Hyperlane mailbox and verify what
+    /// the mailbox stored.
+    Dispatch {
+        /// Circuit hash, hex. Defaults to the newest exercise record's circuit.
+        circuit: Option<String>,
+        #[arg(long, default_value_t = 84532)]
+        domain: u32,
+        #[arg(long, default_value = "solana/deploy-keypair.json")]
+        payer: PathBuf,
+        #[arg(long, default_value = DEVNET)]
+        rpc: String,
+        #[arg(long, default_value = "exercises")]
+        out: PathBuf,
+    },
     /// Publish a passport for a registered circuit, so the fleet and the chain
     /// agree.
     ///
@@ -78,6 +117,12 @@ enum Cmd {
         ttl: i64,
         #[arg(long, default_value = "solana/deploy-keypair.json")]
         payer: PathBuf,
+        #[arg(long, default_value = DEVNET)]
+        rpc: String,
+    },
+    /// Re-check a Hyperlane dispatch record against the cluster.
+    VerifyDispatch {
+        record: PathBuf,
         #[arg(long, default_value = DEVNET)]
         rpc: String,
     },
@@ -215,18 +260,27 @@ impl Ctx {
         if self.rpc.get_account(&self.issuer_pda()).is_ok() {
             return Ok(None);
         }
+        // The issuer key signs REGISTER_DOMAIN || authority, so nobody can
+        // register a key they do not hold.
+        let mut msg = Vec::new();
+        msg.extend_from_slice(b"halflife-register-issuer-v1");
+        msg.extend_from_slice(self.payer.pubkey().as_ref());
         let mut data = discriminator("register_issuer").to_vec();
         data.extend_from_slice(&self.issuer_pub());
         let r = self.send(
-            vec![Instruction {
-                program_id: self.passport_program,
-                accounts: vec![
-                    AccountMeta::new(self.issuer_pda(), false),
-                    AccountMeta::new(self.payer.pubkey(), true),
-                    AccountMeta::new_readonly(system_program::ID, false),
-                ],
-                data,
-            }],
+            vec![
+                ed25519_instruction(&self.issuer_key, &msg),
+                Instruction {
+                    program_id: self.passport_program,
+                    accounts: vec![
+                        AccountMeta::new(self.issuer_pda(), false),
+                        AccountMeta::new(self.payer.pubkey(), true),
+                        AccountMeta::new_readonly(instructions_sysvar::ID, false),
+                        AccountMeta::new_readonly(system_program::ID, false),
+                    ],
+                    data,
+                },
+            ],
             &[],
         )?;
         Ok(Some(r))
@@ -253,6 +307,31 @@ impl Ctx {
                     data,
                 },
             ],
+            &[],
+        )
+    }
+
+    fn route_pda(&self, domain: u32) -> Pubkey {
+        Pubkey::find_program_address(&[b"route", &domain.to_le_bytes()], &self.passport_program).0
+    }
+
+    fn set_route(&self, domain: u32, recipient: [u8; 32], mailbox: Pubkey) -> Result<(String, u64)> {
+        let config = Pubkey::find_program_address(&[b"config"], &self.passport_program).0;
+        let mut data = discriminator("set_route").to_vec();
+        data.extend_from_slice(&domain.to_le_bytes());
+        data.extend_from_slice(&recipient);
+        data.extend_from_slice(mailbox.as_ref());
+        self.send(
+            vec![Instruction {
+                program_id: self.passport_program,
+                accounts: vec![
+                    AccountMeta::new(self.route_pda(domain), false),
+                    AccountMeta::new_readonly(config, false),
+                    AccountMeta::new(self.payer.pubkey(), true),
+                    AccountMeta::new_readonly(system_program::ID, false),
+                ],
+                data,
+            }],
             &[],
         )
     }
@@ -337,6 +416,44 @@ fn main() -> Result<()> {
             );
             Ok(())
         }
+        Cmd::InitConfig { payer, rpc } => {
+            let ctx = Ctx::new(&rpc, &payer)?;
+            let config = Pubkey::find_program_address(&[b"config"], &ctx.passport_program).0;
+            if let Ok(a) = ctx.rpc.get_account(&config) {
+                let admin = Pubkey::try_from(&a.data[8..40]).map_err(|_| anyhow!("bad config"))?;
+                println!("config already initialised  admin {admin}");
+                return Ok(());
+            }
+            let (sig, slot) = ctx.send(
+                vec![Instruction {
+                    program_id: ctx.passport_program,
+                    accounts: vec![
+                        AccountMeta::new(config, false),
+                        AccountMeta::new(ctx.payer.pubkey(), true),
+                        AccountMeta::new_readonly(system_program::ID, false),
+                    ],
+                    data: discriminator("init_config").to_vec(),
+                }],
+                &[],
+            )?;
+            println!("config initialised  admin {}  slot {slot}  {}", ctx.payer.pubkey(), &sig[..16]);
+            Ok(())
+        }
+        Cmd::SetRoute { domain, recipient, mailbox, payer, rpc } => {
+            let ctx = Ctx::new(&rpc, &payer)?;
+            let recipient: [u8; 32] = hex::decode(recipient.trim_start_matches("0x"))
+                .context("recipient is not hex")?
+                .try_into()
+                .map_err(|_| anyhow!("recipient must be 32 bytes"))?;
+            let mailbox = Pubkey::from_str(&mailbox)?;
+            let (sig, slot) = ctx.set_route(domain, recipient, mailbox)?;
+            println!("route set  domain {domain}  mailbox {mailbox}  slot {slot}  {}", &sig[..16]);
+            Ok(())
+        }
+        Cmd::Dispatch { circuit, domain, payer, rpc, out } => {
+            dispatch(circuit.as_deref(), domain, &payer, &rpc, &out)
+        }
+        Cmd::VerifyDispatch { record, rpc } => verify_dispatch(&record, &rpc),
         Cmd::Fetch { circuit, rpc } => fetch(circuit.as_deref(), &rpc),
         Cmd::Verify { record, rpc } => verify(&record, &rpc),
     }
@@ -518,6 +635,210 @@ fn report(ex: &Exercise) {
         ex.verifiable_count(),
         ex.events.len()
     );
+}
+
+/// Dispatch a passport through Hyperlane's real devnet mailbox and then read
+/// back what the mailbox stored, to confirm three things independently of our own
+/// program: the sender is this registry, the body is the signed 125 bytes, and
+/// the route is the one configured.
+fn dispatch(circuit: Option<&str>, domain: u32, payer: &Path, rpc: &str, out: &Path) -> Result<()> {
+    let ctx = Ctx::new(rpc, payer)?;
+    let hash: [u8; 32] = match circuit {
+        Some(h) => hex::decode(h)?.try_into().map_err(|_| anyhow!("circuit hash must be 32 bytes"))?,
+        None => {
+            let mut files: Vec<_> = std::fs::read_dir("exercises")?
+                .filter_map(|e| e.ok().map(|e| e.path()))
+                .filter(|p| p.extension().is_some_and(|x| x == "json")
+                    && p.file_name().is_some_and(|n| n.to_string_lossy().contains("compromise")
+                        || n.to_string_lossy().contains("censorship")))
+                .collect();
+            files.sort();
+            let last = files.last().ok_or_else(|| anyhow!("no exercise records and no circuit given"))?;
+            hex::decode(ledger::Exercise::load(last)?.circuit_hash)?
+                .try_into()
+                .map_err(|_| anyhow!("bad circuit hash in record"))?
+        }
+    };
+
+    let mailbox = Pubkey::from_str(HYPERLANE_DEVNET_MAILBOX)?;
+    let noop = Pubkey::from_str(SPL_NOOP)?;
+    let passport = ctx.passport_pda(&hash);
+    let route = ctx.route_pda(domain);
+    let outbox = Pubkey::find_program_address(&[b"hyperlane", b"-", b"outbox"], &mailbox).0;
+    let authority = Pubkey::find_program_address(
+        &[b"hyperlane_dispatcher", b"-", b"dispatch_authority"],
+        &ctx.passport_program,
+    )
+    .0;
+    let unique = Keypair::new();
+    let dispatched = Pubkey::find_program_address(
+        &[b"hyperlane", b"-", b"dispatched_message", b"-", unique.pubkey().as_ref()],
+        &mailbox,
+    )
+    .0;
+
+    // The passport the registry will relay, read from chain before dispatch.
+    let acct = ctx.rpc.get_account(&passport).with_context(|| format!("no passport at {passport}"))?;
+    let d = &acct.data[8..];
+    let mut body = Vec::with_capacity(125);
+    body.push(1u8);
+    body.extend_from_slice(&d[0..32]);
+    body.extend_from_slice(&d[32..64]);
+    body.extend_from_slice(&d[64..72]);
+    body.push(d[72]);
+    body.push(d[73]);
+    body.extend_from_slice(&d[74..82]);
+    body.extend_from_slice(&d[82..90]);
+    body.extend_from_slice(&d[90..122]);
+    body.extend_from_slice(&d[122..124]);
+
+    println!("\x1b[1mHyperlane dispatch\x1b[0m  (Solana devnet, real mailbox)");
+    println!("  mailbox      {mailbox}");
+    println!("  sender       {}   (the passport program)", ctx.passport_program);
+    println!("  passport     {passport}");
+
+    let (sig, slot) = ctx.send(
+        vec![Instruction {
+            program_id: ctx.passport_program,
+            accounts: vec![
+                AccountMeta::new_readonly(passport, false),
+                AccountMeta::new_readonly(route, false),
+                AccountMeta::new(outbox, false),
+                AccountMeta::new_readonly(authority, false),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+                AccountMeta::new_readonly(unique.pubkey(), true),
+                AccountMeta::new(dispatched, false),
+                AccountMeta::new_readonly(mailbox, false),
+                AccountMeta::new_readonly(noop, false),
+                AccountMeta::new_readonly(system_program::ID, false),
+            ],
+            data: discriminator("dispatch").to_vec(),
+        }],
+        &[&unique],
+    )?;
+    println!("  \x1b[32m✓\x1b[0m accepted by the mailbox   slot {slot}   {}…", &sig[..20]);
+
+    // ---- read back what the mailbox actually stored ----------------------------
+    let stored = ctx.rpc.get_account(&dispatched).context("the mailbox stored no message account")?;
+    let data = &stored.data;
+    let at = data
+        .windows(body.len())
+        .position(|w| w == body.as_slice())
+        .ok_or_else(|| anyhow!("the stored message does not contain the passport's 125 bytes"))?;
+    // Hyperlane message header: version(1) nonce(4) origin(4) sender(32)
+    // destination(4) recipient(32), then the body.
+    if at < 77 {
+        return Err(anyhow!("stored message is too short to carry a header"));
+    }
+    let header = &data[at - 77..at];
+    let version = header[0];
+    let nonce = u32::from_be_bytes(header[1..5].try_into().unwrap());
+    let origin = u32::from_be_bytes(header[5..9].try_into().unwrap());
+    let sender = Pubkey::try_from(&header[9..41]).unwrap();
+    let dest = u32::from_be_bytes(header[41..45].try_into().unwrap());
+    let recipient = &header[45..77];
+    let message_id = solana_sdk::keccak::hash(&data[at - 77..at + body.len()]);
+
+    println!("  read back from the mailbox's own account {dispatched}:");
+    println!("    version      {version}");
+    println!("    nonce        {nonce}");
+    println!("    origin       {origin}");
+    println!("    sender       {sender}");
+    println!("    destination  {dest}");
+    println!("    recipient    0x{}", hex::encode(recipient));
+    println!("    message id   0x{}", hex::encode(message_id.to_bytes()));
+
+    let sender_ok = sender == ctx.passport_program;
+    let dest_ok = dest == domain;
+    println!(
+        "  {} sender is this registry   {} destination matches the route   \x1b[32m✓\x1b[0m body == the signed 125 bytes",
+        if sender_ok { "\x1b[32m✓\x1b[0m" } else { "\x1b[31m✗\x1b[0m" },
+        if dest_ok { "\x1b[32m✓\x1b[0m" } else { "\x1b[31m✗\x1b[0m" },
+    );
+    if !sender_ok || !dest_ok {
+        return Err(anyhow!("the mailbox stored a message that does not match what was dispatched"));
+    }
+
+    std::fs::create_dir_all(out)?;
+    let record = serde_json::json!({
+        "kind": "HYPERLANE_DISPATCH",
+        "cluster": "devnet",
+        "dispatched_at": ledger::now(),
+        "transaction": sig,
+        "slot": slot,
+        "mailbox": mailbox.to_string(),
+        "mailbox_message_account": dispatched.to_string(),
+        "message_id": format!("0x{}", hex::encode(message_id.to_bytes())),
+        "nonce": nonce,
+        "origin_domain": origin,
+        "destination_domain": dest,
+        "sender": sender.to_string(),
+        "recipient": format!("0x{}", hex::encode(recipient)),
+        "recipient_is_placeholder": true,
+        "body_hex": hex::encode(&body),
+        "passport_account": passport.to_string(),
+        "circuit_hash": hex::encode(hash),
+        "limits": [
+            "The origin leg is real: our program CPI'd into Hyperlane's deployed devnet mailbox, which accepted it with our program as sender.",
+            "Delivery to a destination chain is NOT demonstrated: no destination registry is deployed on a public chain, the recipient is a placeholder, and no relayer was paid to deliver."
+        ],
+    });
+    let path = out.join(format!("hyperlane-dispatch-{}.json", ledger::now()));
+    std::fs::write(&path, serde_json::to_vec_pretty(&record)?)?;
+    println!("\nrecord  {}", path.display());
+    println!("explorer  https://explorer.solana.com/tx/{sig}?cluster=devnet");
+    Ok(())
+}
+
+/// Re-fetch a recorded dispatch from the cluster and re-check it without
+/// trusting our recording: the transaction succeeded, and the message account
+/// *Hyperlane's mailbox owns* carries our program as sender and the recorded
+/// body.
+fn verify_dispatch(record: &Path, rpc_url: &str) -> Result<()> {
+    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(record)?)?;
+    let get = |k: &str| v.get(k).and_then(|x| x.as_str()).ok_or_else(|| anyhow!("record has no {k}"));
+    let rpc = RpcClient::new_with_commitment(rpc_url.to_string(), CommitmentConfig::confirmed());
+
+    println!("\x1b[1mVerifying Hyperlane dispatch\x1b[0m");
+    let sig = solana_sdk::signature::Signature::from_str(get("transaction")?)?;
+    let status = rpc
+        .get_signature_statuses_with_history(&[sig])?
+        .value
+        .into_iter()
+        .next()
+        .flatten()
+        .ok_or_else(|| anyhow!("transaction not found on the cluster"))?;
+    if let Some(e) = status.err {
+        return Err(anyhow!("transaction failed on chain: {e:?}"));
+    }
+    println!("  \x1b[32m✓\x1b[0m transaction is on chain and succeeded");
+
+    let acct_key = Pubkey::from_str(get("mailbox_message_account")?)?;
+    let mailbox = Pubkey::from_str(get("mailbox")?)?;
+    let acct = rpc.get_account(&acct_key).context("message account missing")?;
+    if acct.owner != mailbox {
+        return Err(anyhow!("message account is owned by {} not the mailbox", acct.owner));
+    }
+    println!("  \x1b[32m✓\x1b[0m message account is owned by Hyperlane's mailbox, not by us");
+
+    let body = hex::decode(get("body_hex")?)?;
+    let at = acct
+        .data
+        .windows(body.len())
+        .position(|w| w == body.as_slice())
+        .ok_or_else(|| anyhow!("the mailbox's stored message does not contain the recorded body"))?;
+    if at < 77 {
+        return Err(anyhow!("stored message too short"));
+    }
+    let sender = Pubkey::try_from(&acct.data[at - 77 + 9..at - 77 + 41]).unwrap();
+    if sender.to_string() != get("sender")? || sender.to_string() != PASSPORT_ID {
+        return Err(anyhow!("sender is {sender}, expected the passport program"));
+    }
+    println!("  \x1b[32m✓\x1b[0m sender in the stored message is the passport program");
+    println!("  \x1b[32m✓\x1b[0m body in the stored message equals the recorded 125 bytes");
+    println!("\n\x1b[32mrecord is consistent with the cluster\x1b[0m");
+    println!("note: this verifies the ORIGIN leg only. Delivery to a destination chain is not claimed.");
+    Ok(())
 }
 
 /// Read a passport account and rebuild its canonical bytes.

@@ -49,12 +49,29 @@ export interface Exercise {
   events: ExerciseEvent[];
 }
 
+export interface HyperlaneDispatch {
+  transaction: string;
+  slot: number;
+  mailbox: string;
+  mailbox_message_account: string;
+  message_id: string;
+  nonce: number;
+  origin_domain: number;
+  destination_domain: number;
+  sender: string;
+  recipient: string;
+  recipient_is_placeholder: boolean;
+  circuit_hash: string;
+  limits: string[];
+}
+
 export interface State {
   generatedAt: string;
   audience: "PUBLIC" | "OPERATOR";
   circuits: Circuit[];
   dependencies: Dependency[];
   exercises: Exercise[];
+  hyperlaneDispatches?: HyperlaneDispatch[];
   deployments: {
     solanaDevnet: {
       passportProgram: string;

@@ -114,11 +114,11 @@ git clone https://github.com/Nailer/halflife && cd halflife
 ./scripts/verify-all.sh
 ```
 
-Thirty-two checks across every layer. Every number it prints is measured during
+Thirty-nine checks across every layer. Every number it prints is measured during
 the run, not quoted.
 
 ```
-32 passed   0 failed   0 skipped
+39 passed   0 failed   0 skipped
 ```
 
 Then see the blast radius for yourself:
@@ -142,9 +142,26 @@ discriminates.**
 | Containment, dependency compromise | 4s |
 | Containment, relayer censorship | 41s, with no invalidation published |
 
-Reproduce with `cargo run --release -p halflife-bench`. A devnet passport also
-drives a consumer on an EVM chain to the same decision from the same 125 bytes —
-`./scripts/cross-chain.sh`.
+Reproduce with `cargo run --release -p halflife-bench`.
+
+A devnet passport also drives a consumer on an EVM chain to the same decision
+from the same 125 bytes (`./scripts/cross-chain.sh`). That run uses a **local
+chain and a stand-in mailbox**, and says so in its own output.
+
+## Hyperlane, for real
+
+The registry has sent a real message through Hyperlane's deployed devnet mailbox,
+accepted with **our program as the sender**. Reading the mailbox's own account
+back confirms the sender, the destination, and that the body is exactly the 125
+signed bytes:
+
+```bash
+./target/release/halflife-exercise verify-dispatch exercises/hyperlane-dispatch-*.json
+```
+
+**What it does not show:** delivery. No destination registry is deployed on a
+public chain and no relayer was paid, so the destination leg runs only against
+the local chain above.
 
 ## How it works
 
@@ -155,7 +172,7 @@ Five layers, each with one job. The boundaries between them *are* the design.
 | **Lineage** | Resolve a circuit's dependency closure, match every package against published advisories. No model in this path; reproducible offline by anyone. |
 | **Passport** | A 125-byte signed claim: which circuit, which issuer, what was verified, when it expires. Three independent implementations agree on every byte. |
 | **Registry** | Published on Solana. Passport accounts are read-only in the consumer path, so any number of programs check the same passport in one slot without contending. |
-| **Propagation** | Hyperlane carries the state to other chains. It authenticates *transport* — it establishes what Solana said, not that the claim is true. Solana did that. |
+| **Propagation** | The registry dispatches state through Hyperlane, signing as itself. Hyperlane authenticates *transport* — it establishes what Solana said, not that the claim is true. Solana did that. The origin leg is verified against the real devnet mailbox; delivery to a destination chain is not yet demonstrated. |
 | **Enforcement** | The consumer owns the policy. Halflife publishes state and never decides what a program requires. |
 
 ## Why these three ecosystems
@@ -176,7 +193,8 @@ argument, not the convenience.
 **Hyperlane** makes security state portable, and the reason is in its own source:
 the mailbox requires a dispatching program to sign with a PDA derived under the
 declared sender. A program cannot dispatch as a sender it does not control —
-which is exactly why the destination's `originSender` check carries weight.
+which is exactly why the destination's `originSender` check carries weight. (And
+why our own `set_route` mattered: see [`security-notes.md`](docs/security-notes.md).)
 
 ## What is not claimed
 
@@ -199,6 +217,9 @@ Three further limits, stated rather than implied:
   confidential.** Passport state is public on-chain and correlatable.
 - A destination chain **inherits Solana's verification** — it cannot check
   ed25519 itself.
+- **No external audit.** We found and fixed two access-control holes in our own
+  program ([`security-notes.md`](docs/security-notes.md)); that says something
+  good about our process and nothing about what we have not found.
 
 ## Deployed
 
@@ -216,6 +237,7 @@ Three further limits, stated rather than implied:
 | [`capability-model.md`](docs/capability-model.md) | The C0–C5 ladder |
 | [`disclosure-policy.md`](docs/disclosure-policy.md) | What we scan and publish |
 | [`disclosure-status.md`](docs/disclosure-status.md) | Live obligations, including one still unresolved |
+| [`security-notes.md`](docs/security-notes.md) | Holes we found in our own program, and what is still unsolved |
 | [`self-passport.md`](docs/self-passport.md) | Halflife under its own instrument |
 | [`commitments.md`](docs/commitments.md) | Every design promise and where it is enforced |
 

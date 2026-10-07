@@ -52,7 +52,9 @@ and "no confirmed exploitation" is a structurally weak claim.
 A circuit gets a **passport** — a 125-byte signed claim about what was actually
 verified, at what capability, about which exact build, and when that stops being
 current. A Solana program reads it in 1,520 compute units and refuses to proceed
-without one. Hyperlane carries the state to other chains.
+without one. The registry dispatches that state through Hyperlane; the origin
+leg runs on devnet today, and delivery to a destination chain is not yet
+demonstrated.
 
 ### The property it is built around
 
@@ -83,7 +85,7 @@ program cannot halt on a GHSA identifier.
 | Containment, dependency compromise | 4s |
 | Containment, relayer censorship | 41s, no invalidation published |
 
-`./scripts/verify-all.sh` runs 30 checks across every layer. Every number it
+`./scripts/verify-all.sh` runs 39 checks across every layer. Every number it
 prints is measured during the run.
 
 ### What is not claimed
@@ -120,6 +122,27 @@ under the declared sender. A program cannot dispatch as a sender it does not
 control — which is precisely why the destination's `originSender` check carries
 weight. An off-chain relay would make the relayer trusted instead.
 
+That is no longer only an argument. The registry has sent a real message through
+Hyperlane's deployed devnet mailbox, which accepted it with our program as the
+sender. Reading the mailbox's own account back confirms the sender, the
+destination, and that the body is exactly the 125 signed bytes
+(`halflife-exercise verify-dispatch` re-checks it independently).
+
+**What that does not show:** delivery. No destination registry is deployed on a
+public chain and no relayer was paid, so the destination leg is exercised
+against a local chain with a stand-in mailbox. We say so in the product, the
+README and here.
+
+### A hole we found in our own program
+
+While preparing that dispatch we re-read our own enforcement code and found two
+access-control holes: anyone could set a dispatch route (choosing which program
+receives the registry's signature, which would have let an attacker send forged
+passports as us), and anyone could register someone else's public key as an
+issuer. Both are fixed, each is pinned by an attack test, and the write-up is in
+`docs/security-notes.md` alongside what is still unsolved. We would rather you
+read that than discover it.
+
 ## Links
 
 | | |
@@ -129,16 +152,26 @@ weight. An off-chain relay would make the relayer trusted instead.
 | Passport program | `CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2` (devnet) |
 | Consumer program | `BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW` (devnet) |
 
-## Tracks
+## Track
 
-**Solana** — on-chain registry and enforcement, deployed and measured.
-**Zcash** — halo2/Orchard as the cryptographic target; fixtures on the real
-advisory boundary.
+**Solana** — on-chain registry and enforcement, two programs deployed to devnet
+and measured.
+
+We are not entering the Zcash track. It asks for products that integrate with the
+Zcash blockchain or ZEC, and we integrate with neither: Zcash's `halo2` and
+`orchard` crates are the cryptographic *target* we analyse, not something we
+build on.
 
 ## Note for judges on the embargo
 
 Four published crates in the registry resolve to affected `halo2_gadgets`
-versions. They are **not named** on any public surface.
+versions. They are **not named in the live control room**, in either view of its
+public export.
+
+They **are** named in the repository: `fixtures/fleet/` has a directory for each,
+because the findings have to be reproducible. That is an inconsistency with our
+own policy, which we record in `docs/disclosure-status.md` rather than hide. It
+is being resolved by notifying the maintainers.
 
 Our disclosure policy — written before the first scan, not after the first
 finding — requires 14 days' maintainer notice before naming a third party. That
