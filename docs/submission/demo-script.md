@@ -39,7 +39,7 @@ is red, stop and fix it rather than talking over it.
 Go to **Impact**. Click **`halo2_gadgets 0.4.0`**.
 
 > "This advisory lists its affected crates and then says *and any dependents
-> thereof*. Nothing enumerates them. This does."
+> thereof*. Nothing maps them to circuits. This does."
 
 Edges draw out. Point at the red ones.
 
@@ -141,10 +141,12 @@ soundness analysis is an open research problem, and leading with it would mean
 having nothing if the research didn't land.
 
 **"Is this just `cargo audit`?"**
-RustSec has no entry for `halo2_gadgets`, `orchard` or `zcash_primitives`, so
-`cargo audit` returns clean on a vulnerable tree. More importantly, nothing
-consumes an advisory on-chain — a program cannot halt on a GHSA identifier.
-That is the gap.
+Partly. RustSec, which `cargo audit` reads, has no entry for `halo2_gadgets`,
+`orchard` or `zcash_primitives`, so it returns clean on a vulnerable tree. The
+advisory *does* exist in GitHub's database and OSV (CVE-2026-54496), so
+Dependabot and `osv-scanner` see it. What none of them do is map it to the
+circuits that depend on it, and nothing consumes an advisory on-chain — a
+program cannot halt on a GHSA identifier. That is the gap.
 
 **"What's the capability tier really worth?"**
 C1 — closure resolution and advisory matching, no model involved. Higher tiers

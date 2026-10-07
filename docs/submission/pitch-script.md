@@ -71,9 +71,9 @@ Items in `[brackets]` must be filled with true statements or deleted.
 > notified the maintainers of four affected crates and are talking to [N] teams.]
 > We found and fixed two holes in our own program, and we published that."
 
-**2:20 — Team and close (10s)**
+**2:20 — Who you are and close (10s)**
 
-> "[Team: who you are, and why you can build this.] Halflife: a use-by date for
+> "[Solo: one sentence on who you are and why you can build this — e.g. what you shipped before.] Halflife: a use-by date for
 > cryptographic security."
 
 ---

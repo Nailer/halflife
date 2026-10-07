@@ -72,10 +72,12 @@ one on-chain write.
 ### What it answers that nothing else does
 
 The advisory for `halo2_gadgets` lists its affected crates and then says *"and
-any dependents thereof."* **Nothing enumerates them.** RustSec carries no entry
-for `halo2_gadgets`, `orchard` or `zcash_primitives`, so `cargo audit` returns
-clean on a vulnerable tree — and nothing consumes an advisory on-chain at all. A
-program cannot halt on a GHSA identifier.
+any dependents thereof."* **Nothing enumerates them.** RustSec (what `cargo audit`
+reads) carries no entry for `halo2_gadgets`, `orchard` or `zcash_primitives`, so
+it returns clean on a vulnerable tree; GitHub's database and OSV do carry it
+(CVE-2026-54496), so Dependabot flags the direct dependents. Nothing maps it to
+the circuits that sit on top, and nothing consumes an advisory on-chain at all.
+A program cannot halt on a GHSA identifier.
 
 ### Measured, not claimed
 

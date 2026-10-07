@@ -2,6 +2,8 @@
 
 # Halflife
 
+[![CI](https://github.com/Nailer/halflife/actions/workflows/halflife.yml/badge.svg)](https://github.com/Nailer/halflife/actions/workflows/halflife.yml) ![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)
+
 **A circuit breaker for protocols built on zero-knowledge cryptography.**
 
 When a vulnerability is published in cryptography your protocol depends on, your
@@ -51,10 +53,13 @@ halflife scan .
 
 Tells you whether your crypto dependencies carry published advisories.
 
-`cargo audit` already does this for ordinary Rust — but it **misses the ZK
-crates entirely.** RustSec has no entry for `halo2_gadgets`, `orchard` or
-`zcash_primitives`, so `cargo audit` reports clean on a tree pinned to versions
-carrying a counterfeiting vulnerability. We checked.
+`cargo audit` already does this for ordinary Rust — but on this advisory it
+**reports clean.** RustSec, the database `cargo audit` reads, has no entry for
+`halo2_gadgets`, `orchard` or `zcash_primitives`. The advisory does exist in
+GitHub's database and OSV (GHSA-ww9q-8r59-xv46 / CVE-2026-54496, 6 July 2026),
+so Dependabot and `osv-scanner` can see it. We checked both, on 7 Oct 2026.
+What none of them do is tell you which *circuits* sit on the affected code, or
+let a program on-chain act on it.
 
 ### 2 · Don't let me ship it again
 
