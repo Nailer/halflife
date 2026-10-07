@@ -45,6 +45,11 @@ enum Cmd {
         common: ScanArgs,
         #[arg(short, long)]
         out: Option<PathBuf>,
+        /// Exit non-zero if the closure carries an advisory. This is the CI
+        /// gate: a pull request that moves a circuit onto an affected
+        /// dependency fails the build instead of reaching an incident.
+        #[arg(long)]
+        deny: bool,
     },
     /// Scan a circuit and record it in the registry.
     Register {
@@ -171,12 +176,20 @@ fn main() -> Result<()> {
             target,
             common,
             out,
+            deny,
         } => {
             let out = out.unwrap_or_else(|| target.join("out"));
             let (evidence, signed) = build(&target, &common)?;
             report(&evidence, &signed);
             write_out(&out, &evidence, &signed)?;
             println!("written   {}", out.display());
+            if deny && signed.core.status == Status::Invalid {
+                eprintln!(
+                    "denied    {} advisory hit(s) in the closure",
+                    evidence.advisory_count()
+                );
+                std::process::exit(2);
+            }
             Ok(())
         }
         Cmd::Register {
