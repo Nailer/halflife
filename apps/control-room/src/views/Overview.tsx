@@ -18,7 +18,8 @@ export function Overview({
           A circuit's audit tells you what someone knew then. A passport tells
           your program what has actually been verified, at what capability,
           about the exact build it is trusting — and blocks it when that
-          evidence stops being current.
+          evidence stops being current. Other tools react to an attack in
+          progress; this acts on a published weakness, before the attack.
         </p>
         <div className="cta">
           <button className="btn primary" onClick={() => go("impact")}>
