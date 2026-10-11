@@ -32,8 +32,8 @@ Items in `[brackets]` must be filled with true statements or deleted.
 
 **0:45 — What we built (30s)** *(product shot: the Impact view)*
 
-> "Halflife is a circuit breaker for protocols built on zero-knowledge
-> cryptography.
+> "Halflife is a use-by date for cryptographic security. Other tools react to
+> an attack in progress; this acts on a published weakness, before the attack.
 >
 > Three things. One: tell me whether I'm affected, including through the
 > dependencies of my dependencies. Two: fail my build before I ship it. Three:

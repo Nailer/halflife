@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Nailer/halflife/actions/workflows/halflife.yml/badge.svg)](https://github.com/Nailer/halflife/actions/workflows/halflife.yml) ![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)
 
-**A circuit breaker for protocols built on zero-knowledge cryptography.**
+**A use-by date for cryptographic security.** Signed, expiring security passports for zero-knowledge circuits, enforced on Solana.
 
 When a vulnerability is published in cryptography your protocol depends on, your
 program stops accepting proofs — in one slot, with no governance vote, no
