@@ -62,13 +62,18 @@ Items in `[brackets]` must be filled with true statements or deleted.
 >
 > Our first beachhead is small and concentrated: only six crates depend on
 > halo2_gadgets directly, but it has 1.5 million downloads, because the exposure
-> is transitive. That's the part existing tools miss."
+> is transitive. That's the part existing tools miss.
+>
+> On Solana, the same kind of Rust dependency tree sits under Groth16 verifier
+> libraries that projects like Light Protocol and Bonsol build on. The scanner
+> already reads those. Whether those teams want it is exactly what I'm testing."
 
 **2:05 — Honest status (15s)**
 
 > "Where we are: two programs on Solana devnet, a real message through Hyperlane's
-> mailbox, and thirty-nine automated checks. We have no customers yet. [We've
-> told the maintainers of three affected crates, and are talking to [N] teams.]
+> mailbox, and thirty-nine automated checks. We have no customers yet. I've
+> told the maintainers of three affected crates. [Add "and I'm talking to N
+> teams" ONLY with a real number; otherwise leave this out.]
 > We found and fixed two holes in our own program, and we published that."
 
 **2:20 — Who you are and close (20s)** *(on camera, with your photo)*

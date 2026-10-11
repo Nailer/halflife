@@ -222,6 +222,14 @@ Three further limits, stated rather than implied:
   confidential.** Passport state is public on-chain and correlatable.
 - A destination chain **inherits Solana's verification** — it cannot check
   ed25519 itself.
+- **C1 is a blunt instrument.** It marks a closure `INVALID` on *any* advisory in
+  the lockfile, with no severity filter, no reachability analysis, and no
+  distinction between runtime and test-only dependencies or between
+  vulnerabilities and "unmaintained" notices. Run on a real Solana Groth16
+  verifier library's workspace lockfile on 12 Oct 2026, it returned `INVALID` on
+  14 packages, many of them test and tooling dependencies. That is the false-positive
+  cost of failing closed, and why the first adopters should be CI and monitoring
+  rather than live halts. Severity and reachability filtering are not built.
 - **No external audit.** We found and fixed two access-control holes in our own
   program ([`security-notes.md`](docs/security-notes.md)); that says something
   good about our process and nothing about what we have not found.

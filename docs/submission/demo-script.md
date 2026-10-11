@@ -140,6 +140,13 @@ The verification engine is deliberately sequenced last — reliable automated
 soundness analysis is an open research problem, and leading with it would mean
 having nothing if the research didn't land.
 
+**"Won't it cry wolf?"**
+Yes, at C1, and we say so. It flags any advisory in the lockfile closure, with no
+severity or reachability filter. Run on a real Solana Groth16 verifier library's
+workspace it flagged 14 packages, many in test tooling. That is why the first use
+is a CI gate and monitoring, where a false positive is a red build, not a halted
+protocol, and why filtering is the first thing to build with a design partner.
+
 **"Is this just `cargo audit`?"**
 Partly. RustSec, which `cargo audit` reads, has no entry for `halo2_gadgets`,
 `orchard` or `zcash_primitives`, so it returns clean on a vulnerable tree. The
