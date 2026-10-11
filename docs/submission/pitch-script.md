@@ -1,4 +1,4 @@
-# Pitch video script (2:30)
+# Pitch video script (~2:45)
 
 Colosseum requires **two** videos. This is the *presentation* (why this matters,
 who it is for, why this team). The *demo* video (how it works) is
@@ -68,13 +68,18 @@ Items in `[brackets]` must be filled with true statements or deleted.
 
 > "Where we are: two programs on Solana devnet, a real message through Hyperlane's
 > mailbox, and thirty-nine automated checks. We have no customers yet. [We've
-> notified the maintainers of four affected crates and are talking to [N] teams.]
+> told the maintainers of three affected crates, and are talking to [N] teams.]
 > We found and fixed two holes in our own program, and we published that."
 
-**2:20 — Who you are and close (10s)**
+**2:20 — Who you are and close (20s)** *(on camera, with your photo)*
 
-> "[Solo: one sentence on who you are and why you can build this — e.g. what you shipped before.] Halflife: a use-by date for
-> cryptographic security."
+> "I'm Emmanuel Aje, a full-stack blockchain developer with over five years of
+> experience, and I'm building Halflife solo. I've shipped Attestable, which
+> settled a real payout automatically against a real Chainlink outage, backed by
+> fifty-one passing tests. This time the problem is the shelf life of
+> cryptographic security.
+>
+> Halflife: a use-by date for cryptographic security."
 
 ---
 

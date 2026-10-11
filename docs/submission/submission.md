@@ -173,7 +173,9 @@ public export.
 They **are** named in the repository: `fixtures/fleet/` has a directory for each,
 because the findings have to be reproducible. That is an inconsistency with our
 own policy, which we record in `docs/disclosure-status.md` rather than hide. It
-is being resolved by notifying the maintainers.
+is being resolved by notifying the maintainers: three of four were notified by
+public GitHub issue on 11 October 2026 (the fourth's repository has issues
+disabled), and the 14-day notice period runs to 25 October.
 
 Our disclosure policy — written before the first scan, not after the first
 finding — requires 14 days' maintainer notice before naming a third party. That

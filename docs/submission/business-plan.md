@@ -180,7 +180,7 @@ the only one.
 | Teams that have run it outside the founder | 0 |
 | Paying or committed customers | 0 |
 | Design-partner conversations held | *to be filled with real numbers after outreach* |
-| Maintainers of affected crates notified | 0 (notices drafted, not sent) |
+| Maintainers of affected crates notified | 3 of 4, by public GitHub issue on 11 Oct 2026; 0 replies so far. The fourth has issues disabled. |
 | Public contributions (advisories filed) | 0 |
 
 Indirect evidence only: the incident record in section 1, and the observation that
@@ -224,10 +224,10 @@ remains a free public tool and the spec.
 
 ## 10. Team
 
-Solo founder: **Emmanuel** (GitHub: Nailer).
+Solo founder: **Emmanuel Aje** (GitHub: Nailer), full-stack blockchain developer with over five years of experience.
 
-*Background, experience, location and relevant shipped work: to be finalised by
-the founder in the submission form. Shipped hackathon projects include Attestable
+*Location and further background: to be finalised by the founder in the submission
+form. Shipped hackathon projects include Attestable
 (on-chain parametric payout settled against a real Chainlink outage, 51/51 Foundry
 tests), Agent Studio Marketplace, TokenLens and NIM Duel.*
 
