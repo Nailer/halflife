@@ -178,3 +178,7 @@
   .lp-rise, .lp-reveal, .lp-node { opacity: 1 !important; transform: none !important; }
   .lp-draw, .lp-intro-curve { stroke-dashoffset: 0 !important; }
 }
+
+/* Docs: a text link in the nav on wide screens, an icon where the nav is hidden. */
+.lp-docs { display: none; }
+@media (max-width: 720px) { .lp-docs { display: grid; } }

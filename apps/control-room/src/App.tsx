@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { State } from "./types";
 import { applyTheme, initialTheme, type Theme } from "./theme";
 import { Tour, hasSeenTour, type TourStep } from "./Tour";
-import { Sun, Moon, Help, NavOverview, NavImpact, NavDrills, NavFleet, NavCheck, NavAbout } from "./icons";
+import { Sun, Moon, Help, NavOverview, NavImpact, NavDrills, NavFleet, NavCheck, NavAbout, NavDocs } from "./icons";
 import { Overview } from "./views/Overview";
 import { Impact } from "./views/Impact";
 import { Drills } from "./views/Drills";
@@ -19,6 +19,8 @@ const VIEWS = [
   { id: "check", label: "Check yours", Icon: NavCheck, color: "#2dd4bf" },
   { id: "about", label: "How it works", Icon: NavAbout, color: "#f778ba" },
 ] as const;
+
+const DOCS_URL = "https://halflife.mintlify.site/";
 
 const STEPS: TourStep[] = [
   {
@@ -139,21 +141,7 @@ export function App() {
           <span>control room</span>
         </a>
 
-        <nav className="nav" aria-label="Views">
-          {VIEWS.map((v) => (
-            <button
-              key={v.id}
-              data-on={view === v.id}
-              aria-label={v.label}
-              aria-current={view === v.id ? "page" : undefined}
-              style={{ "--c": v.color } as React.CSSProperties}
-              onClick={() => setView(v.id)}
-            >
-              <v.Icon />
-              <span className="nav-label"><span>{v.label}</span></span>
-            </button>
-          ))}
-        </nav>
+
 
         <div className="spacer" />
 
@@ -174,6 +162,27 @@ export function App() {
           {theme === "dark" ? <Sun /> : <Moon />}
         </button>
       </header>
+
+        <aside className="rail"><nav className="nav" aria-label="Views">
+          {VIEWS.map((v) => (
+            <button
+              key={v.id}
+              data-on={view === v.id}
+              aria-label={v.label}
+              aria-current={view === v.id ? "page" : undefined}
+              style={{ "--c": v.color } as React.CSSProperties}
+              onClick={() => setView(v.id)}
+            >
+              <v.Icon />
+              <span className="nav-label"><span>{v.label}</span></span>
+            </button>
+          ))}
+        </nav>
+      <a className="rail-docs" href={DOCS_URL} target="_blank" rel="noopener noreferrer" aria-label="Documentation (opens in a new tab)" style={{ "--c": "#facc15" } as React.CSSProperties}>
+        <NavDocs />
+        <span className="nav-label"><span>Docs ↗</span></span>
+      </a>
+      </aside>
 
       <main className="main">
         {err && (

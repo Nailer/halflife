@@ -20,3 +20,4 @@ export const NavDrills = () => (<svg {...n}><path d="M13 2.5 4.5 13.5H11l-1 8 8.
 export const NavFleet = () => (<svg {...n}><path d="m12 3 9 4.5-9 4.5-9-4.5z" /><path d="m3 12 9 4.5 9-4.5" /><path d="m3 16.5 9 4.5 9-4.5" /></svg>);
 export const NavCheck = () => (<svg {...n}><path d="M12 3 4.5 6v5.5c0 4.4 3 8 7.5 9.5 4.5-1.5 7.5-5.1 7.5-9.5V6z" /><path d="m8.8 12.2 2.4 2.4 4.2-4.6" /></svg>);
 export const NavAbout = () => (<svg {...n}><circle cx="12" cy="12" r="9.5" /><path d="m15.6 8.4-2 5.2-5.2 2 2-5.2z" /></svg>);
+export const NavDocs = () => (<svg {...n}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5" /><path d="M9 8h7M9 12h5" /></svg>);

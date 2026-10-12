@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Sun, Moon, Arrow } from "./icons";
+import { Sun, Moon, Arrow, NavDocs } from "./icons";
 import type { Theme } from "./theme";
 import "./landing.css";
 
@@ -212,8 +212,10 @@ export function Landing({ theme, onTheme }: { theme: Theme; onTheme: () => void 
         <nav aria-label="Sections">
           <a href="#how" onClick={(e) => { e.preventDefault(); document.getElementById("how")?.scrollIntoView({ behavior: "smooth" }); }}>How it works</a>
           <a href="#try" onClick={(e) => { e.preventDefault(); document.getElementById("try")?.scrollIntoView({ behavior: "smooth" }); }}>Try it</a>
+          <a href="https://halflife.mintlify.site/" target="_blank" rel="noopener noreferrer">Docs</a>
           <a href={GH} target="_blank" rel="noreferrer">GitHub</a>
         </nav>
+        <a className="lp-icon lp-docs" href="https://halflife.mintlify.site/" target="_blank" rel="noopener noreferrer" aria-label="Documentation" title="Documentation"><NavDocs /></a>
         <button className="lp-icon" onClick={onTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
           {theme === "dark" ? <Sun /> : <Moon />}
         </button>
