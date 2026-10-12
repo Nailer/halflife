@@ -129,8 +129,12 @@ export function App() {
 
   return (
     <div className="shell">
+      <div className="lp-bg" aria-hidden="true">
+        <i className="b1" /><i className="b2" /><i className="b3" />
+      </div>
       <header className="topbar">
         <a className="brand" href="#" title="Back to the overview page" style={{ textDecoration: "none", color: "inherit" }}>
+          <svg className="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 44 C 20 18, 32 14, 52 14" fill="none" stroke="#3fb950" strokeWidth="6" strokeLinecap="round" /><path d="M12 44 C 20 18, 32 14, 52 14" fill="none" stroke="#d29922" strokeWidth="6" strokeLinecap="round" strokeDasharray="26 100" /><circle cx="52" cy="14" r="6" fill="#f85149" /></svg>
           <h1>Halflife</h1>
           <span>control room</span>
         </a>

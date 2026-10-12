@@ -13,13 +13,12 @@ export function Overview({
   return (
     <div className="view">
       <div className="card hero" data-tour="hero">
-        <h3>A use-by date for cryptographic security.</h3>
+        <h3>Every circuit has a <span className="lp-grad">use-by date.</span></h3>
         <p>
           A circuit's audit tells you what someone knew then. A passport tells
           your program what has actually been verified, at what capability,
           about the exact build it is trusting — and blocks it when that
-          evidence stops being current. Other tools react to an attack in
-          progress; this acts on a published weakness, before the attack.
+          evidence stops being current.
         </p>
         <div className="cta">
           <button className="btn primary" onClick={() => go("impact")}>
