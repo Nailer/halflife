@@ -9,3 +9,14 @@ export const Check = () => (<svg {...s} strokeWidth={2.3}><path d="M20 6 9 17l-5
 export const Alert = () => (<svg {...s} strokeWidth={2.3}><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>);
 export const Idle = () => (<svg {...s} strokeWidth={2.2}><circle cx="12" cy="12" r="9" /></svg>);
 export const Arrow = () => (<svg {...s}><path d="M5 12h14M13 6l6 6-6 6" /></svg>);
+
+// Navigation icons: slightly larger and heavier than the utility set so they
+// carry the tab on their own.
+const n = { width: 19, height: 19, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+export const NavOverview = () => (<svg {...n}><rect x="3" y="3" width="7.5" height="7.5" rx="2" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" /></svg>);
+export const NavImpact = () => (<svg {...n}><circle cx="12" cy="12" r="2.4" /><circle cx="12" cy="12" r="6" opacity=".65" /><circle cx="12" cy="12" r="9.5" opacity=".35" /></svg>);
+export const NavDrills = () => (<svg {...n}><path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z" /></svg>);
+export const NavFleet = () => (<svg {...n}><path d="m12 3 9 4.5-9 4.5-9-4.5z" /><path d="m3 12 9 4.5 9-4.5" /><path d="m3 16.5 9 4.5 9-4.5" /></svg>);
+export const NavCheck = () => (<svg {...n}><path d="M12 3 4.5 6v5.5c0 4.4 3 8 7.5 9.5 4.5-1.5 7.5-5.1 7.5-9.5V6z" /><path d="m8.8 12.2 2.4 2.4 4.2-4.6" /></svg>);
+export const NavAbout = () => (<svg {...n}><circle cx="12" cy="12" r="9.5" /><path d="m15.6 8.4-2 5.2-5.2 2 2-5.2z" /></svg>);

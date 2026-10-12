@@ -452,3 +452,32 @@ footer.foot p { font-size: 12px; color: var(--faint); max-width: 84ch; line-heig
 .foot { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
 
 @media (prefers-reduced-motion: reduce) { .shell > .lp-bg i { animation: none !important; } }
+
+/* nav: icons at rest, the name slides out on hover or keyboard focus.
+   The grid 0fr -> 1fr trick animates to the label's natural width. */
+.nav { gap: 4px; overflow: visible; }
+.nav button {
+  --c: var(--live);
+  display: inline-flex; align-items: center; gap: 0;
+  height: 38px; padding: 0 10px; border-radius: 11px;
+  color: color-mix(in srgb, var(--c) 78%, var(--dim));
+  transition: background 0.28s ease, color 0.28s ease, gap 0.32s cubic-bezier(.3,.7,.2,1), box-shadow 0.28s ease, transform 0.28s ease;
+}
+.nav button svg { flex: 0 0 auto; transition: transform 0.32s cubic-bezier(.3,.7,.2,1), filter 0.28s; }
+.nav-label {
+  display: grid; grid-template-columns: 0fr; opacity: 0;
+  transition: grid-template-columns 0.32s cubic-bezier(.3,.7,.2,1), opacity 0.22s ease;
+}
+.nav-label > span { overflow: hidden; white-space: nowrap; font-size: 12.5px; font-weight: 600; letter-spacing: -0.005em; }
+.nav button:hover, .nav button:focus-visible {
+  gap: 8px; color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, var(--surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 32%, transparent);
+}
+.nav button:hover svg, .nav button:focus-visible svg { transform: scale(1.08); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c) 55%, transparent)); }
+.nav button:hover .nav-label, .nav button:focus-visible .nav-label { grid-template-columns: 1fr; opacity: 1; }
+.nav button[data-on="true"] { color: var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); }
+.nav button[data-on="true"]::after { left: 12px; right: 12px; background: var(--c); }
+@media (prefers-reduced-motion: reduce) {
+  .nav button, .nav button svg, .nav-label { transition: none; }
+}
