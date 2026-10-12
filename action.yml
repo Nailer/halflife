@@ -37,7 +37,9 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           ${{ github.action_path }}/target
-        key: halflife-gate-${{ runner.os }}-${{ hashFiles(format('{0}/Cargo.lock', github.action_path)) }}
+        key: halflife-gate-${{ runner.os }}-${{ github.action_ref || 'local' }}-${{ github.sha }}
+        restore-keys: |
+          halflife-gate-${{ runner.os }}-${{ github.action_ref || 'local' }}-
 
     - name: Build the Halflife CLI
       shell: bash
