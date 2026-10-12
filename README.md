@@ -34,12 +34,10 @@ One day a vulnerability is found in one of them. Today:
 
 This is not hypothetical. In 2026 four cryptographic systems that had each
 passed professional review failed — Zcash Sprout, Zcash Orchard, Aztec V5, and
-Coldcard at $116M. Every flaw was years old. Every one was found with AI
-assistance.
+Coldcard at $116M. Three of the flaws had sat there for four to six years. In
+at least two, the bug was found with AI-assisted auditing.
 
-The researcher who found the Orchard bug had **already run the same framework
-over the same code with the previous model generation, and found nothing.** The
-code never changed. The tools got better.
+The code in those cases did not change. What changed is what can be found in it.
 
 **So an audit is a perishable good.**
 

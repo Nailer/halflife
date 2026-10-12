@@ -14,11 +14,10 @@ Items in `[brackets]` must be filled with true statements or deleted.
 **0:00 — The hook (20s)**
 
 > "In 2026, four cryptographic systems that had each passed professional review
-> failed. Every flaw was years old. Every one was found with AI assistance.
+> failed. Three of the flaws had sat there for four to six years. In at least two,
+> the bug was found with AI-assisted auditing.
 >
-> The researcher who found the Zcash Orchard bug had already run the same
-> framework over the same code with the previous model, and found nothing. The
-> code didn't change. The tools did."
+> The code didn't change. What can be found in it did."
 
 **0:20 — The problem (25s)**
 

@@ -18,12 +18,12 @@ is the one that has to land.
 
 ## Short description (≤ 280 chars)
 
-> In 2026 four cryptographic systems failed — every flaw years old, every one
-> found with AI assistance. An audit is now a perishable good. Halflife gives a
-> ZK circuit a signed passport saying what was verified and when it expires, and
+> In 2026 four cryptographic systems that had passed review failed; most of the
+> flaws were years old. An audit is now a perishable good. Halflife gives a ZK
+> circuit a signed passport saying what was verified and when it expires, and
 > programs refuse to proceed without one.
 
-*(277 characters)*
+*(270 characters)*
 
 ## Full description
 
@@ -32,14 +32,12 @@ detectable now.**
 
 Between March and August 2026, four cryptographic systems that had each passed
 professional review failed. Zcash Sprout — proof verification skipped entirely,
-four years. Zcash Orchard — a counterfeiting circuit, four years. Aztec V5 — a
-proving-system soundness bug. Coldcard — $116M drained from a five-year-old
-flaw.
+about six years. Zcash Orchard — a counterfeiting circuit, four years. Aztec V5 —
+a proving-system soundness bug in a recent alpha, found by Aztec's own
+AI-assisted audit. Coldcard — $116M drained from a five-year-old flaw.
 
-One detail turns that from a list into a finding. The researcher who found the
-Orchard bug had **already run the same auditing framework over the same code
-with the previous model generation, and it found nothing.** The code never
-changed. The capability frontier moved.
+The Orchard bug was reportedly found with an AI-assisted audit. The code did not
+change. What can be found in it did.
 
 Zero-knowledge systems are the most exposed class of software to this, for a
 reason specific to them: **their bugs are silent.** A broken contract reverts

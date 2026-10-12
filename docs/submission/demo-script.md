@@ -50,11 +50,10 @@ trusting it when it expires." Then press **Enter the control room**.
 ## 1 · The problem (25 seconds)
 
 > "In 2026, four cryptographic systems that had each passed professional review
-> failed. Every flaw was years old. Every one was found with AI assistance.
+> failed. Three of the flaws had sat there for four to six years. In at least two,
+> the bug was found with AI-assisted auditing.
 >
-> The detail that matters: the researcher who found the Zcash Orchard bug had
-> already run the same framework over the same code with the previous model
-> generation — and found nothing. The code never changed. The tools got better.
+> The code never changed. What can be found in it did.
 >
 > So an audit is a perishable good. And zero-knowledge bugs are silent: a broken
 > contract reverts and shows up in a block explorer. An under-constrained

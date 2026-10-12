@@ -39,8 +39,8 @@ Use AI for these and nothing else:
 
 | # | Time | On screen | Voiceover |
 |---|---|---|---|
-| 1 | 0:00–0:12 | Title card: **Halflife — a use-by date for cryptographic security** | "Four cryptographic systems failed in 2026. Every flaw was years old. Every one was found with AI assistance." |
-| 2 | 0:12–0:30 | Static card listing the four: Zcash Sprout · Zcash Orchard · Aztec V5 · Coldcard $116M | "The researcher who found the Zcash Orchard bug had already run the same framework over the same code with the previous model generation — and found nothing. The code never changed. The tools got better." |
+| 1 | 0:00–0:12 | Title card: **Halflife — a use-by date for cryptographic security** | "Four cryptographic systems failed in 2026. Three of the flaws had sat there for four to six years. In at least two, the bug was found with AI-assisted auditing." |
+| 2 | 0:12–0:30 | Static card listing the four: Zcash Sprout · Zcash Orchard · Aztec V5 · Coldcard $116M | "The code never changed. What can be found in it did." |
 | 3 | 0:30–0:42 | Terminal: `cargo audit` on a vulnerable tree returning clean | "An audit is a perishable good. And ZK bugs are silent — nothing reverts, nothing shows up in a block explorer." |
 | 4 | 0:42–1:05 | **Control room → Impact.** Click `halo2_gadgets 0.4.0`, edges draw out | "This advisory lists its affected crates and then says *and any dependents thereof*. Nothing maps them to circuits. This does." |
 | 5 | 1:05–1:18 | Click `halo2_gadgets 0.5.0` — reaches circuits, affects none | "Same dependency, fixed version. Still reaches circuits. Affects none. Anyone can build an alarm — showing what a healthy dependency doesn't touch is what proves it discriminates." |
