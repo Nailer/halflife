@@ -1,0 +1,61 @@
+---
+title: "Hyperlane dispatch"
+description: "Initialise the registry config, set an admin-only route to an allowlisted mailbox, dispatch a passport through Hyperlane's real devnet mailbox, and verify what the mailbox stored."
+icon: "send"
+---
+
+This guide reproduces the **origin leg** of propagation against Hyperlane's **deployed devnet mailbox**.
+
+<Accordion title="In plain terms" icon="lightbulb">
+These steps send a passport label from Solana into Hyperlane's real message system on the test network, then read Hyperlane's own record back to prove the message was accepted, that it came from the Halflife program, and that it carries exactly the right 125 bytes.
+</Accordion>
+
+<Steps>
+  <Step title="Initialise config (once, at deployment)">
+    ```bash
+    ./target/release/halflife-exercise init-config --payer solana/deploy-keypair.json
+    ```
+    The caller becomes **admin**. `init_config` is first-caller-wins, so run it in the **same step as deployment**. If config already exists, the command prints the current admin and exits.
+  </Step>
+  <Step title="Set a route (admin only)">
+    ```bash
+    ./target/release/halflife-exercise set-route \
+      --domain 84532 \
+      --mailbox 5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54
+      # --recipient 0x<bytes32 destination registry>  (defaults to a 0xeeee… placeholder)
+    ```
+    This fails with `NotAdmin` if the signer isn't admin, or `UnknownMailbox` if the mailbox isn't allowlisted.
+  </Step>
+  <Step title="Ensure a passport exists">
+    ```bash
+    ./target/release/halflife-exercise publish <circuit_hash_hex> --status valid --ttl 86400
+    ```
+  </Step>
+  <Step title="Dispatch">
+    ```bash
+    ./target/release/halflife-exercise dispatch [<circuit_hash_hex>] --domain 84532
+    ```
+    This writes `exercises/hyperlane-dispatch-<unix>.json`.
+  </Step>
+  <Step title="Verify independently">
+    ```bash
+    ./target/release/halflife-exercise verify-dispatch exercises/hyperlane-dispatch-*.json
+    ```
+    This re-reads the **mailbox-owned** message account and checks that the transaction succeeded, the sender is the passport program, and the body is the recorded 125 bytes.
+  </Step>
+</Steps>
+
+## The committed dispatch record
+
+| Field | Value |
+|---|---|
+| `transaction` | `w1WP5rrh…uTrwjk` |
+| `slot` | `508440680` |
+| `mailbox` | `5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54` |
+| `mailbox_message_account` | `3hyk9cAo5Z1TCxAEhAgmk4btBM9U3JhbPHVUW7pCcbYY` |
+| `message_id` | `0xbf2a31c2…e8abc5` |
+| `origin_domain` → `destination_domain` | `1399811151` → `84532` |
+| `sender` | `CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2` |
+| `recipient_is_placeholder` | `true` |
+
+Each record carries its own `limits` array, stating in the data itself that the origin leg is real and delivery isn't demonstrated.

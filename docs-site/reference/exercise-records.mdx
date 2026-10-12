@@ -1,0 +1,60 @@
+---
+title: "Exercise records"
+description: "The ledger format written by halflife-exercise: scenarios, event kinds, evidence types, and the rule that durations are never stored."
+icon: "scroll"
+---
+
+<Accordion title="In plain terms" icon="lightbulb">
+Each emergency drill produces a log file that lists what happened, in order, with proof (transaction IDs) wherever proof exists. Anyone can re-check the proofs against the blockchain.
+</Accordion>
+
+## Shape
+
+```json
+{
+  "exercise_id": "relayer-censorship-1790859373",
+  "scenario": "RELAYER_CENSORSHIP",
+  "cluster": "devnet",
+  "started_at": 1790859373,
+  "passport_program": "CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2",
+  "consumer_program": "BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW",
+  "circuit_hash": "e8d694d4…",
+  "events": [ { "seq": 1, "kind": "…", "observed_at": 1790859375, "evidence": { … }, "detail": "…" } ]
+}
+```
+
+## Scenarios
+
+| Value | Meaning |
+|---|---|
+| `DEPENDENCY_COMPROMISE` | A dependency becomes unsafe, and the chain of consequence runs to a blocked consumer |
+| `RELAYER_CENSORSHIP` | Delivery stops, nothing is published, and the consumer must block anyway |
+
+## Event kinds
+
+| Kind | Meaning |
+|---|---|
+| `FINDING_REGISTERED` | An advisory finding is recorded |
+| `IMPACT_PROJECTED` | Affected circuits enumerated |
+| `PASSPORT_INVALIDATED` | An `INVALID` passport was signed |
+| `SOLANA_COMMITTED` | A passport write landed on Solana |
+| `CONSUMER_BLOCKED` | The consumer refused to proceed |
+| `RELAYER_STOPPED` | Delivery deliberately stopped |
+| `PASSPORT_EXPIRED` | Expiry reached with no update delivered |
+| `HYPERLANE_DISPATCHED` | Message dispatched via Hyperlane |
+| `DESTINATION_RECEIVED` | Destination registry accepted the message |
+
+## Evidence types
+
+| Type | Fields | Independently verifiable? |
+|---|---|---|
+| `SOLANA_TRANSACTION` | `signature`, `slot` | **Yes.** Re-fetchable from any RPC for the cluster. |
+| `HYPERLANE_MESSAGE` | `message_id` | **Yes.** Re-fetchable from the Hyperlane explorer or the destination mailbox. |
+| `LOCAL` | `note` | **No**, and labelled so |
+
+## Rules
+
+- **No duration is stored.** Timings are derived from `observed_at` at read time, so a reader recomputes them and either agrees or has found a problem.
+- `observed_at` is the wall clock at the moment the event was observed.
+- `LOCAL` events are never presented with the same weight as on-chain evidence.
+- A censorship record must contain **exactly one** `SOLANA_TRANSACTION` (the baseline).

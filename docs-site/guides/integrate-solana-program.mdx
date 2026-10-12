@@ -1,0 +1,135 @@
+---
+title: "Integrate a Solana program"
+description: "Gate your Anchor program's proof path on a Halflife passport: add the dependency, require the passport account read-only, pin the PDA, and map the errors."
+icon: "shield-check"
+---
+
+This guide makes your program **refuse to accept a proof** unless a current passport exists for the circuit it depends on. The cost is about **1,520 CU** per check.
+
+<Accordion title="In plain terms" icon="lightbulb">
+You add a few lines to your blockchain program so that, before it does anything important, it reads the circuit's safety label. If the label is missing, expired, or says "problem", your program refuses. This costs less than 1% of a normal transaction's budget.
+</Accordion>
+
+## 1. Decide your policy
+
+| Policy value | Example | Where it comes from |
+|---|---|---|
+| `expected_circuit` | `[u8; 32]` | `circuit_hash` from `halflife scan` of the build you deploy |
+| `trusted_issuer` | ed25519 pubkey | The issuer whose passports you accept |
+| `min_capability` | `1` (C1) | The minimum tier you require. Halflife emits C1 today. |
+
+Hard-code or store these values in your program. **Don't** accept them from the caller, or a caller could choose a weaker policy.
+
+## 2. Add the dependency
+
+The passport program exposes its `Passport` account type and the `Effective` resolver. Depend on it with `no-entrypoint` (or `cpi`, which implies it) so you get the types without a second program entrypoint. This is exactly how the reference consumer depends on it. The programs use Anchor **0.32.1** (resolved to 0.32.2 in the lockfile) and build with `overflow-checks = true` in release, so an arithmetic wrap inside a security decision aborts rather than wrapping.
+
+```toml Cargo.toml
+[dependencies]
+anchor-lang = "0.32.1"
+halflife-passport = { git = "https://github.com/Nailer/halflife", features = ["no-entrypoint"] }
+```
+
+<Note>
+The program lives in the separate `solana/` workspace, which is pinned to the SBF toolchain (rustc 1.84). Match your Anchor version to the one in `solana/Cargo.lock`, or vendor the `Passport` struct and `effective()` function (they're about 40 lines) if your versions diverge. The account layout is fixed: an 8-byte discriminator followed by the fields in [wire-format](/reference/passport-wire-format) order, plus `bump`.
+</Note>
+
+## 3. Require the passport as a read-only, pinned account
+
+```rust lib.rs
+use anchor_lang::prelude::*;
+use halflife_passport::{Effective, Passport};
+
+pub const EXPECTED_CIRCUIT: [u8; 32] = [/* your circuit_hash */];
+pub const TRUSTED_ISSUER:   [u8; 32] = [/* issuer pubkey bytes */];
+pub const MIN_CAPABILITY:   u8 = 1;
+
+#[derive(Accounts)]
+pub struct VerifyProof<'info> {
+    /// Read-only: no write lock, so concurrent consumers never contend.
+    /// Pinned: seeds + seeds::program guarantee this is the passport for
+    /// OUR circuit from OUR trusted issuer, owned by the Halflife program.
+    #[account(
+        seeds = [b"passport", EXPECTED_CIRCUIT.as_ref(), TRUSTED_ISSUER.as_ref()],
+        bump = passport.bump,
+        seeds::program = halflife_passport::ID,
+    )]
+    pub passport: Account<'info, Passport>,
+    pub user: Signer<'info>,
+    // … your other accounts
+}
+```
+
+<Warning>
+**Pin the PDA.** The reference consumer takes the policy as instruction arguments so it can be benchmarked. In your program, without `seeds`/`seeds::program`, a caller could pass a passport from an issuer you don't trust. `Account<Passport>` already checks that the owner is the Halflife program. The seeds check pins **which** passport.
+</Warning>
+
+<Accordion title="In plain terms" icon="lightbulb">
+This tells Solana: "this program needs exactly one specific label: the one for my circuit, from the checker I trust, created by the official Halflife program." If someone tries to pass a different label, the transaction is rejected before your code even runs. If no such label exists at all, it's also rejected. Missing never means "go".
+</Accordion>
+
+## 4. Check before you accept the proof
+
+```rust lib.rs
+#[error_code]
+pub enum GateError {
+    #[msg("passport describes a different circuit")]           WrongCircuit,
+    #[msg("passport capability below required tier")]          InsufficientCapability,
+    #[msg("security evidence is no longer current; not a finding")] PassportStale,
+    #[msg("an accepted issuer reported this circuit unsafe")]  PassportInvalid,
+}
+
+fn require_current_passport(p: &Passport) -> Result<()> {
+    require!(p.circuit_hash == EXPECTED_CIRCUIT, GateError::WrongCircuit);
+    require!(p.capability >= MIN_CAPABILITY, GateError::InsufficientCapability);
+    match p.effective(Clock::get()?.unix_timestamp) {
+        Effective::Valid   => Ok(()),
+        Effective::Stale   => err!(GateError::PassportStale),
+        Effective::Invalid => err!(GateError::PassportInvalid),
+    }
+}
+
+pub fn verify_proof(ctx: Context<VerifyProof>, proof: Vec<u8>) -> Result<()> {
+    require_current_passport(&ctx.accounts.passport)?;
+    // … only now verify and act on the proof
+    Ok(())
+}
+```
+
+Keep `Stale` and `Invalid` as **distinct errors**. Operators need to tell a delivery problem from a finding.
+
+## 5. Pass the account from the client
+
+```ts client.ts
+import { PublicKey } from "@solana/web3.js";
+
+const HALFLIFE = new PublicKey("CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2"); // devnet
+const [passport] = PublicKey.findProgramAddressSync(
+  [Buffer.from("passport"), circuitHash /* 32 B */, issuerPubkey /* 32 B */],
+  HALFLIFE,
+);
+
+await program.methods.verifyProof(proof).accounts({ passport, user }).rpc();
+```
+
+## 6. Test all four outcomes
+
+| Scenario | Expected |
+|---|---|
+| Passport `VALID`, before expiry | Proceeds |
+| Passport `INVALID` | `PassportInvalid` |
+| Passport `VALID`, clock past `expires_at` | `PassportStale` |
+| No passport account | Account resolution fails, so the tx aborts |
+| Passport for a different issuer | Seeds constraint fails |
+
+`halflife-bench` shows how to do this in **LiteSVM**: load the `.so` files, register an issuer with an Ed25519 instruction, publish, warp the clock, and assert the error names. See `crates/halflife-bench/src/main.rs`.
+
+## Quorum (n-of-m issuers)
+
+Pass *m* passport accounts (one PDA per trusted issuer), count those that pass `require_current_passport`, and require `count >= n`. There's no aggregate signature in v1.
+
+## Operational notes
+
+- **Renew before expiry.** A `VALID` passport you forget to renew blocks your own program. That's by design. Automate renewal well inside the TTL.
+- **Choose a TTL** that matches how long you'd tolerate silence. See [Status and staleness](/concepts/status-and-staleness#choosing-a-ttl).
+- **Recovering from `INVALID`** means fixing the closure, re-scanning, and publishing a new passport with a higher `sequence`. If the fix changes the build, `circuit_hash` changes too, so update `EXPECTED_CIRCUIT` through your normal upgrade process.

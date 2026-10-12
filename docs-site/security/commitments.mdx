@@ -1,0 +1,72 @@
+---
+title: "Commitments"
+description: "Every promise made while designing Halflife, with where it's enforced and how to check it. A commitment with no enforcement point is drift."
+icon: "handshake"
+---
+
+The whole project is premised on not letting unmeasured claims stand. This page is the ledger.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the list of promises the project made, each paired with the exact place in the code or process that keeps it. If a promise has nowhere it's enforced, it doesn't count.
+</Accordion>
+
+## Thesis
+
+| # | Commitment | Where |
+|---|---|---|
+| T1 | Lead with *security passports for zero-knowledge circuits*, not "control plane" | README |
+| T2 | Never claim a circuit is secure. Record what was tested, at what capability, against which build. | README, `lib.rs` docs |
+
+## Invariants
+
+See [Invariants](/security/invariants) (I1–I6).
+
+## Trust boundaries
+
+See [Trust boundaries](/security/trust-boundaries) (B1–B4).
+
+## Discipline rules
+
+| # | Commitment | How to check |
+|---|---|---|
+| D1 | **No tier claimed without measurement**. C1 only until C2+ recall is published. | `Capability::C1` hardcoded in scan |
+| D2 | Every published number is reproducible from a committed script | `halflife-bench`, exercise ledgers |
+| D3 | The deterministic path stays model-free and reproducible offline | `--offline`, pinned snapshot |
+| D4 | Negative results are published, including poor engine recall | Self-passport `INVALID` |
+| D5 | **CLI before UI**. A capability not in the CLI isn't built. | Control room renders `export` |
+| D6 | No manufactured scale: small, real fleet only | 8 systems, never 47 |
+| D7 | **Measured, not simulated**. No displayed timing from a predetermined script. | Event ledger |
+| D8 | Embargo via staleness is quiet, not confidential | Disclosure policy |
+
+## Ecosystem necessity
+
+| # | Commitment | Test |
+|---|---|---|
+| E1 | **Zcash** is the real cryptographic target | Fixtures span the real advisory boundary with genuine checksums |
+| E2 | **Solana** is justified by a measured CU cost, not convenience | Benchmark publishes the number whatever it says |
+| E3 | **Hyperlane** with an Aggregation ISM, never the bare default | Contract refuses zero and NULL. Relayer-killed block holds. |
+
+## Scope discipline
+
+| # | Commitment |
+|---|---|
+| S1 | Two fire-drill scenarios only: dependency compromise and relayer censorship |
+| S2 | Issuer compromise and deployment drift are **defined and not armed** |
+| S3 | Projection claims **circuits only** until consumer registration exists |
+| S4 | Artifact identity (P4B) must not block dependency intelligence (P4A) |
+| S5 | No extra chain, token, DAO, marketplace, insurance layer, security score, or agent swarm |
+| S6 | The verification engine is sequenced last, so its research risk can't sink the project |
+
+## Added 7 October 2026
+
+| # | Commitment | Enforced at |
+|---|---|---|
+| X1 | Only the registry can speak as the registry: admin-only routes **and** a known-mailbox allowlist | `set_route`, `dispatch`, six bench attack tests |
+| X2 | Nobody can register an issuer key they don't hold | `register_issuer` ed25519 proof |
+| X3 | Hyperlane delivery to a destination chain is **not** claimed. The origin leg is. | README, submission, interface |
+| X4 | Don't claim a hackathon track that doesn't fit | Zcash track dropped: no ZEC or chain integration |
+| L8 | `init_config` is first-caller-wins, the upgrade authority is a single key, and there's no external audit | [Self-review findings](/security/self-review-findings) |
+
+## Known limits that must keep being stated
+
+L1–L8 are listed in [Known limits](/security/known-limits).

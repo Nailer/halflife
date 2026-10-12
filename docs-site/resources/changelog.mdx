@@ -1,0 +1,39 @@
+---
+title: "Changelog"
+description: "Notable milestones in Halflife's development."
+icon: "history"
+---
+
+<Update label="12 October 2026" description="Action, Check yours, and docs">
+  - Reusable **GitHub Action** (`action.yml`), tested through `uses:` in both directions
+  - **Check yours**: paste a `Cargo.lock` and get a would-pass/would-fail verdict from OSV in the browser
+  - Documented the C1 false-positive limit from a real Solana Groth16 verifier scan
+  - Landing page with the decay-pipeline hero, and the control room unified with it
+  - Incident claims corrected to what sources support
+  - This documentation site
+</Update>
+
+<Update label="11 October 2026" description="Disclosure">
+  - Maintainer notices filed for 3 of 4 affected crates. The fourth is unreachable (issues disabled).
+</Update>
+
+<Update label="7 October 2026" description="Self-review and real Hyperlane dispatch">
+  - Closed two access-control holes in `halflife-passport` (admin-only routes plus a mailbox allowlist, and issuer proof of possession)
+  - Six attack tests added to the benchmark
+  - First **real Hyperlane dispatch** through the devnet mailbox, independently verifiable
+  - Advisory-coverage claim corrected (GHSA/OSV has it, RustSec doesn't)
+</Update>
+
+<Update label="3 October 2026" description="Embargo leak fixed">
+  - The dependency index leaked embargoed names in the public export. Fixed, with `the_dependency_index_does_not_leak_embargoed_names`.
+</Update>
+
+<Update label="Stages 0–6" description="Proof boundary">
+  - Disclosure policy before the first scan (Gate A)
+  - Wire format frozen at **v1.0.0** with conformance vectors and an independent Node implementation (Gate B)
+  - SQLite registry and a real 8-system fleet (Gate C)
+  - Disclosure-aware projection (Gate D)
+  - Solana programs, a 1,520 CU benchmark, and devnet deployment (Gate E)
+  - EVM destination with a mandatory non-null ISM (Gate F)
+  - Fire drills with re-verifiable ledgers (Gate G)
+</Update>

@@ -1,0 +1,142 @@
+---
+title: "halflife-core API"
+description: "The passport primitive in Rust: types, constants, methods, and the decide() entry point."
+icon: "brackets"
+---
+
+`halflife-core` has no I/O and no network. It depends only on `serde`, `serde_json`, `sha2`, and `hex`.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the heart of the project as a code library: the definition of a passport and the rules for judging one. Other parts of Halflife, and your own Rust code, can use it directly.
+</Accordion>
+
+## Constants
+
+```rust
+pub const SIGNING_DOMAIN: &[u8] = b"halflife-passport-v1";
+pub const PASSPORT_VERSION: u8 = 1;
+pub const PASSPORT_CORE_LEN: usize = 125;
+pub const MAX_CLOCK_SKEW_SECS: i64 = 300;
+```
+
+## Enums
+
+| Type | Variants | Serde |
+|---|---|---|
+| `Capability` | `C0`–`C5`. `tier() -> u8`, `from_tier(u8) -> Option<Self>`. Ordered. | `"C0"`… |
+| `Status` | `Valid`, `Invalid`. `code() -> u8` (1/2). **No `Stale`.** | `"VALID"`, `"INVALID"` |
+| `EffectiveStatus` | `Valid`, `Stale`, `Invalid` | uppercase |
+| `DisclosureState` | `Public`, `Embargoed` (**default**) | uppercase |
+| `Audience` | `Public`, `Operator`. `is_public()` | uppercase |
+| `Block` | `Missing`, `Stale`, `Invalid`, `WrongCircuit`, `InsufficientCapability`, `UntrustedIssuer`, `ClockOutOfBounds` | |
+| `Decision` | `Allow`, `Block(Block)` | |
+
+## `PassportCore`
+
+```rust
+pub struct PassportCore {
+    pub version: u8,
+    pub circuit_hash: [u8; 32],   // serde: hex
+    pub issuer: [u8; 32],         // serde: hex
+    pub sequence: u64,            // serde: STRICT string
+    pub capability: Capability,
+    pub status: Status,
+    pub issued_at: i64,           // serde: STRICT string
+    pub expires_at: i64,          // serde: STRICT string
+    pub evidence_hash: [u8; 32],  // serde: hex
+    pub advisory_count: u16,
+}
+```
+
+| Method | Returns |
+|---|---|
+| `canonical_bytes()` | `[u8; 125]` |
+| `signing_preimage()` | `Vec<u8>` = domain ‖ canonical |
+| `status_at(now)` | `EffectiveStatus` |
+| `supersedes(&other)` | `bool` |
+| `within_clock_bounds(now)` | `bool` |
+
+## `SignedPassport`
+
+```rust
+pub struct SignedPassport {
+    pub core: PassportCore,
+    pub issuer_id: String,        // base58
+    pub signature: [u8; 64],      // serde: hex
+}
+```
+
+## `IssuerRecord`
+
+```rust
+pub struct IssuerRecord {
+    pub key: [u8; 32],
+    pub registered_at: i64,
+    pub revoked_at: Option<i64>,
+    pub rotated_from: Option<[u8; 32]>,
+}
+impl IssuerRecord {
+    pub fn active(key: [u8; 32], registered_at: i64) -> Self;
+    pub fn accepts(&self, issued_at: i64, now: i64) -> bool;
+}
+```
+
+## `Evidence` and friends
+
+```rust
+pub struct Evidence {
+    pub evidence_version: u8,
+    pub subject: Subject,              // name, repository, commit, proof_system
+    pub capability: Capability,
+    #[serde(default)] pub disclosure: DisclosureState,
+    pub methods: Vec<Method>,          // id, description
+    pub advisory_source: String,
+    pub dependencies: Vec<Dependency>, // name, version, checksum: Option, advisories
+}
+```
+
+| Method | Returns |
+|---|---|
+| `normalize(&mut self)` | Sorts and de-duplicates |
+| `canonical_json()` | `Result<Vec<u8>>` |
+| `hash()` | `Result<[u8; 32]>` |
+| `advisory_count()` | `usize` |
+| `derive_status()` | `Status` |
+| `is_public()` | `bool` |
+| `circuit_hash()` | `[u8; 32]` |
+
+## `decide`
+
+```rust
+pub struct Policy {
+    pub expected_circuit: [u8; 32],
+    pub min_capability: Capability,
+    pub trusted_issuers: Vec<IssuerRecord>,
+}
+
+pub fn decide(passport: Option<&PassportCore>, policy: &Policy, now: i64) -> Decision;
+```
+
+Order of checks: Missing → WrongCircuit → ClockOutOfBounds → UntrustedIssuer → InsufficientCapability → Stale/Invalid. See [Consumer policy](/concepts/consumer-policy).
+
+## Helpers
+
+`pub fn sha256(&[u8]) -> [u8; 32]`, and the serde modules `hex32`, `hex64`, `str_u64`, `str_i64`.
+
+## Example
+
+```rust
+use halflife_core::*;
+
+let policy = Policy {
+    expected_circuit: expected,
+    min_capability: Capability::C1,
+    trusted_issuers: vec![IssuerRecord::active(issuer_key, registered_at)],
+};
+
+match decide(maybe_passport.as_ref(), &policy, now) {
+    Decision::Allow => proceed(),
+    Decision::Block(Block::Stale) => alert_ops("evidence aged out — not a finding"),
+    Decision::Block(reason) => refuse(reason),
+}
+```

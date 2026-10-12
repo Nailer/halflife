@@ -1,0 +1,33 @@
+---
+title: "Reporting a vulnerability"
+description: "How to report a security issue in Halflife privately, and what happens next."
+icon: "mail-warning"
+---
+
+<Warning>
+**Don't open a public GitHub issue for a security finding.**
+</Warning>
+
+## How to report
+
+Report privately through the repository's security channel, using GitHub's **"Report a vulnerability"** (private vulnerability reporting) on [github.com/Nailer/halflife](https://github.com/Nailer/halflife/security), or by contacting the maintainer directly. Encrypted reports are accepted.
+
+## What to include
+
+- Affected component (CLI, `halflife_passport`, `halflife_consumer`, EVM contracts, control room, Action)
+- Version or commit
+- Reproduction steps, ideally a failing test or a LiteSVM / Foundry case
+- Impact assessment
+
+## What happens next
+
+| Stage | Commitment |
+|---|---|
+| Acknowledgement | Within **72 hours** |
+| Fix and disclosure | Coordinated, per the [disclosure policy](/security/disclosure-policy) |
+| Credit | Offered, unless you prefer otherwise |
+| Write-up | Published alongside existing [self-review findings](/security/self-review-findings) |
+
+<Accordion title="In plain terms" icon="lightbulb">
+If you find a security problem in Halflife, tell the maintainer privately instead of posting it publicly. You'll hear back within three days, and the fix will be handled responsibly and credited.
+</Accordion>

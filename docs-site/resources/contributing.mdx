@@ -1,0 +1,73 @@
+---
+title: "Contributing"
+description: "How to contribute code, fixtures, implementations, and documentation, and the rules every change must respect."
+icon: "git-merge"
+---
+
+<Accordion title="In plain terms" icon="lightbulb">
+Anyone can help improve Halflife. This page explains how to make a change and the project's ground rules, such as "measure before you claim" and "never weaken a safety rule".
+</Accordion>
+
+## Ground rules
+
+Every change is checked against [Commitments](/security/commitments). In particular:
+
+- **No tier claimed without measurement.** Don't emit anything above C1 without published recall.
+- **CLI before UI.** A capability that isn't in the CLI doesn't get built in the control room.
+- **Measured, not simulated.** No hard-coded timings or numbers in the UI or docs.
+- **Don't weaken an invariant.** Changes touching `status_at`, `decide`, `effective`, `statusAt`, or `handle` need a test that pins I1–I6.
+- **The wire format is frozen.** Any change to the 125-byte layout, the domain separator, or the JSON rules is a v2 event.
+- **The disclosure policy binds.** Don't add fixtures or exports that name third parties inside a notice period.
+
+## Workflow
+
+<Steps>
+  <Step title="Fork and branch">
+    `git checkout -b feat/your-change`
+  </Step>
+  <Step title="Make the change, with tests">
+    Rust unit tests, Foundry tests, or bench assertions, as appropriate.
+  </Step>
+  <Step title="Run the full verification">
+    `./scripts/verify-all.sh` must stay green (skips are fine if a toolchain is absent).
+  </Step>
+  <Step title="Regenerate derived artifacts if needed">
+    `build-snapshot.py` after fixture changes, and `halflife export` after registry changes.
+  </Step>
+  <Step title="Open a pull request">
+    CI runs `verify`, `gate`, and `action`.
+  </Step>
+</Steps>
+
+## Good first contributions
+
+| Area | Idea |
+|---|---|
+| Implementations | A Go, Python, or TypeScript SDK that passes the vectors and makes absence block |
+| Lineage | Severity or reachability filtering behind a flag, keeping C1 semantics explicit |
+| Ecosystems | Parse other lockfiles (Noir `Nargo.toml`, npm for circom) |
+| Self-passport | Split the workspace so bench and exercise resolve separately |
+| Assurance | Reproducible `.so` builds |
+
+## Editing these docs
+
+The docs live in `docs-site/` as Mintlify MDX.
+
+```bash
+npm i -g mint
+cd docs-site
+mint dev            # http://localhost:3000
+mint broken-links   # check internal links
+```
+
+**Conventions:**
+
+- Lead with the precise technical statement.
+- Follow each technical section with an `<Accordion title="In plain terms" icon="lightbulb">` giving the plain-language version.
+- Every number needs a reproducing command, and every limit stays stated.
+- Don't name third parties under embargo.
+- Add new pages to `docs.json` navigation.
+
+## Licence
+
+Apache-2.0. By contributing, you agree your contributions are licensed under it.

@@ -1,0 +1,62 @@
+---
+title: "GitHub Action"
+description: "Reference for action.yml: the Halflife advisory gate as a composite action."
+icon: "git-pull-request"
+---
+
+```yaml
+- uses: Nailer/halflife@<commit-sha>
+  with:
+    path: .
+    proof-system: halo2
+    offline: "false"
+    deny: "true"
+```
+
+**Name:** Halflife advisory gate. **Type:** composite. **Branding:** shield, orange.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the full technical description of the GitHub add-on: what you can configure and what it reports back. For a walk-through, see [Gate pull requests in CI](/guides/ci-github-action).
+</Accordion>
+
+## Inputs
+
+<ParamField path="path" type="string" default=".">
+  Directory containing the `Cargo.lock` to check.
+</ParamField>
+<ParamField path="proof-system" type="string" default="unknown">
+  Free-text label recorded in the generated manifest (`halo2`, `groth16`, `noir`, …). Ignored if `halflife.toml` exists in `path`.
+</ParamField>
+<ParamField path="offline" type='"true" | "false"' default='"false"'>
+  Use the snapshot shipped with the Action (`fixtures/osv-snapshot.json`) instead of querying OSV.
+</ParamField>
+<ParamField path="deny" type='"true" | "false"' default='"true"'>
+  Exit non-zero when an advisory is found.
+</ParamField>
+
+## Outputs
+
+<ResponseField name="status" type='"clean" | "advisories"'>
+  `advisories` if the scan's status line matched `^status +Invalid`, otherwise `clean`.
+</ResponseField>
+
+## Steps
+
+| # | Step | Detail |
+|---|---|---|
+| 1 | Cache | `actions/cache@v4` on `~/.cargo/registry`, `~/.cargo/git`, and `${{ github.action_path }}/target`. Key `halflife-gate-<os>-<action_ref>-<sha>` |
+| 2 | Build | `cargo build --release --locked -p halflife-cli --manifest-path <action>/Cargo.toml` |
+| 3 | Gate | Copy the lockfile to `$RUNNER_TEMP/halflife-gate`, generate a manifest if needed, keygen a throwaway issuer, scan, append to `$GITHUB_STEP_SUMMARY`, set `status`, and fail if `deny` |
+
+## Requirements
+
+- A Rust toolchain on the runner (for example `dtolnay/rust-toolchain@stable`) **before** the Action.
+- `actions/checkout` so the lockfile is present.
+- Network access to `api.osv.dev` unless `offline: "true"`.
+
+## Annotations emitted
+
+| Annotation | When |
+|---|---|
+| `::error title=No Cargo.lock::<path>/Cargo.lock not found` | Missing lockfile (always fails) |
+| `::error title=Advisory in dependency closure::see the job summary for the affected packages` | Any advisory |

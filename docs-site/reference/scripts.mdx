@@ -1,0 +1,26 @@
+---
+title: "Scripts"
+description: "Every helper script in scripts/: what it does, what it needs, and when to run it."
+icon: "scroll-text"
+---
+
+| Script | Purpose | Needs |
+|---|---|---|
+| `verify-all.sh` | Full verification pass across every layer (39 checks) | cargo, node, forge, anchor, solana, python3 |
+| `demo.sh` | The deterministic path end to end: vulnerable, patched, accept, block, fail-safe, tamper | cargo, python3 |
+| `ci-gate.sh <pass\|fail> <target>` | Run the advisory gate offline and assert the expected outcome | built CLI |
+| `ci-negative-control.sh` | Tamper a vector and require the Node implementation to reject it | node, python3 |
+| `cross-chain.sh [--fresh] [circuit]` | Devnet passport → local EVM consumer decision | built exercise CLI, Foundry, python3, curl |
+| `self-passport.sh [out]` | Halflife scans itself, `--disclosure public` | built CLI, python3 |
+| `deploy-ui.sh` | Regenerate both exports, deploy to Vercel, assert anonymous HTTP 200 | built CLI, vercel, curl |
+| `build-fleet.py` | Derive fleet closures from crates.io (genuine versions and checksums) | python3, curl |
+| `build-snapshot.py` | Pin `fixtures/osv-snapshot.json` from live OSV for every fixture package | python3, curl |
+| `activity-report.py [--out file]` | Evidence of activity from sources the project doesn't control (GitHub and Solana devnet), read at run time | python3, `gh` logged in as a repo admin (for traffic counts) |
+
+<Accordion title="In plain terms" icon="lightbulb">
+These are shortcut commands. Each one runs a series of steps for you, such as testing everything, running a demo, or rebuilding the sample data.
+</Accordion>
+
+<Note>
+`build-snapshot.py` must be re-run after **any** fixture change. A hand-picked snapshot silently under-reports.
+</Note>

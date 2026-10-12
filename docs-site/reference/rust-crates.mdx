@@ -1,0 +1,82 @@
+---
+title: "Rust crates"
+description: "Public surface of halflife-lineage, halflife-registry, halflife-projection, halflife-bench, and halflife-exercise."
+icon: "package"
+---
+
+<Accordion title="In plain terms" icon="lightbulb">
+The Rust code is split into small libraries, each with one job. This page summarises what each one offers.
+</Accordion>
+
+## `halflife-lineage`
+
+```rust
+pub struct TargetConfig { pub subject: SubjectConfig }
+pub struct SubjectConfig { pub name: String, pub repository: String, pub commit: String, pub proof_system: String }
+
+pub enum AdvisorySource<'a> { Osv, Snapshot(&'a Path) }
+
+pub struct Closure { pub evidence: Evidence, pub registry_count: usize }
+
+pub fn resolve(target: &Path, source: AdvisorySource<'_>, disclosure: DisclosureState) -> Result<Closure>;
+
+pub mod lockfile { pub fn parse(path: &Path) -> Result<Vec<ResolvedPackage>>; }
+pub mod advisory {
+    pub type AdvisoryMap = BTreeMap<String, Vec<String>>;   // "name@version" → ids
+    pub fn key(name: &str, version: &str) -> String;
+    pub fn lookup_online(pkgs: &[(String, String)]) -> Result<AdvisoryMap>;
+    pub fn lookup_offline(path: &Path) -> Result<AdvisoryMap>;
+}
+```
+
+## `halflife-projection`
+
+```rust
+pub struct Reached { pub circuit_hash: String, pub name: String, pub repository: String, pub advisories: Vec<String> }
+
+pub trait RegistrySource {
+    fn reached_by(&self, name: &str, version: &str, audience: Audience) -> Result<Vec<Reached>>;
+    fn visible_circuits(&self, audience: Audience) -> Result<usize>;
+}
+
+pub struct Impact {
+    pub dependency: String, pub version: String, pub audience: Audience,
+    pub affected: Vec<Reached>, pub clean: Vec<Reached>,
+    pub not_reached: usize, pub advisories: Vec<String>,
+}
+impl Impact { pub fn reached(&self) -> usize; pub fn is_clear(&self) -> bool; }
+
+pub fn project<S: RegistrySource + ?Sized>(source: &S, name: &str, version: &str, audience: Audience) -> Result<Impact>;
+```
+
+Implement `RegistrySource` over any store, such as Postgres or an API, and projection works unchanged. **The audience must be applied inside the source**, never by filtering afterwards.
+
+## `halflife-registry`
+
+```rust
+pub struct Store { /* rusqlite::Connection */ }
+impl Store {
+    pub fn open(path: &Path) -> Result<Self>;
+    pub fn open_in_memory() -> Result<Self>;
+    pub fn register(&mut self, e: &Evidence, s: &SignedPassport, now: i64) -> Result<String>;
+    pub fn circuits(&self) -> Result<Vec<CircuitRow>>;
+    pub fn latest_passport(&self, circuit_hash: &str) -> Result<Option<PassportRow>>;
+    pub fn dependents(&self, name: &str, version: &str) -> Result<Vec<Dependent>>;
+    pub fn known_dependencies(&self, audience: Audience) -> Result<Vec<(String, String, usize)>>;
+    pub fn dependency_count(&self, circuit_hash: &str) -> Result<usize>;
+}
+impl RegistrySource for Store { … }
+```
+
+## `halflife-bench` (binary)
+
+Loads the SBF artifacts into **LiteSVM**, then measures and asserts: `init_config`, `register_issuer`, `publish (valid)`, **`consumer check`**, invalidation → `PassportInvalid`, replay → `SequenceNotIncreasing`, clock warp → `PassportStale` with nothing published, six access-control attacks, and the 125-byte round trip.
+
+```bash
+cd solana && anchor build && cd ..
+cargo run --release -p halflife-bench
+```
+
+## `halflife-exercise` (binary)
+
+See [halflife-exercise CLI](/reference/exercise-cli). The `ledger` module defines `Exercise`, `Scenario`, `EventKind`, and `Evidence` (`SolanaTransaction` / `HyperlaneMessage` / `Local`).

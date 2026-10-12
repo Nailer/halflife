@@ -1,0 +1,58 @@
+---
+title: "ISM configuration"
+description: "The destination's Interchain Security Module is its security. The choice, the cost to defeat it, and what the contract refuses to let an operator do."
+icon: "shield-half"
+---
+
+<Accordion title="In plain terms" icon="lightbulb">
+When a message arrives from another chain, an "Interchain Security Module" (ISM) decides whether to believe it. It's like requiring a set of independent witnesses to confirm a letter is genuine. Halflife refuses to run with no witnesses or a "trust anyone" setting, and recommends two independent groups of witnesses who must both agree.
+</Accordion>
+
+## What the contract refuses
+
+| Attempted configuration | Result |
+|---|---|
+| `address(0)` (inherit the mailbox default) | `IsmRequired()` |
+| `Types.NULL` (verify nothing, trust the relayer) | `NullIsmRefused()` |
+| Later downgrade to either | Same reverts |
+| Non-owner change | `NotOwner()` |
+
+At the time of the $292M KelpDAO loss, **47% of deployed integrations on a comparable system were running a single-verifier configuration.** Nobody chose that. They accepted a default. So the weak configuration is made **unrepresentable** rather than discouraged.
+
+### What the contract can't do
+
+It rejects the *empty* choice. It **can't** tell a 1-of-1 multisig from a 7-of-10, because `moduleType()` reports a category, not a threshold. That remains an operator decision, recorded here rather than assumed.
+
+## The configuration for this deployment
+
+```text
+AggregationISM (2 of 2)
+├── MessageIdMultisigISM   Hyperlane's validator set for the Solana origin
+└── MerkleRootMultisigISM  independent root attestation over the same message
+```
+
+**Cost to defeat:** both modules must be subverted for one message. Compromising a single validator set isn't enough. That's the property a 1-of-1 lacks, and the reason aggregation was chosen over a bare multisig.
+
+### Why suppression isn't on this list
+
+A relayer can censor but can't forge. Withholding a Halflife message produces staleness, and staleness blocks. The ISM defends against **forged** state. Expiry defends against **absent** state. Neither covers the other.
+
+## Addresses
+
+### Base Sepolia (destination, domain `84532`)
+
+| | |
+|---|---|
+| Mailbox | `0x6966b0E55883d49BFB24539356a2f8A673E02039` |
+| Aggregation ISM factory (`staticAggregationIsmFactory`) | `0x275aCcCa81cAD931dC6fB6E49ED233Bc99Bed4A7` |
+| IGP | `0x28B02B97a850872C4D33C3E024fab6499ad96564` |
+| Merkle tree hook | `0x86fb9F1c124fB20ff130C41a79a432F770f67AFD` |
+| RPC | `https://sepolia.base.org` |
+
+### Solana devnet (origin)
+
+| | |
+|---|---|
+| Mailbox | `5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54` |
+| Multisig ISM (message id) | `4Q1eZAovdqhihCCZyabX4u5rCJPq5R8YgyKVDCdjzTNV` |
+| IGP | `9N7WmRUVL6b8agkS2GMephafHpwMWKAKAyjoNyW3j4Fi` |

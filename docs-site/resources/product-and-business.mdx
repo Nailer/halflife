@@ -1,0 +1,89 @@
+---
+title: "Product and business"
+description: "Product layers, what's built, the competitive landscape, go-to-market, risks, and the honest state of demand validation."
+icon: "briefcase"
+---
+
+<Info>
+This page summarises `docs/submission/business-plan.md` (status date 7 October 2026). Facts carry a source or a command, and hypotheses are labelled as hypotheses. **Nothing here has been validated with a customer yet.**
+</Info>
+
+<Accordion title="In plain terms" icon="lightbulb">
+This page explains Halflife as a product: what's free, what might be paid later, who else works in this space, and what still has to be proven. It's deliberately honest about what isn't known yet.
+</Accordion>
+
+## Product layers
+
+| Layer | What it is | Status | Price hypothesis |
+|---|---|---|---|
+| **Scan** | `halflife scan`, the CI gate, registry reads, the open spec | Built | **Free, forever.** A security signal nobody can read isn't a signal. |
+| **Monitor** | Continuous re-checking of a team's circuits, alerts, auto-invalidation | Not built | Paid, per circuit per month. **Unpriced.** |
+| **Feed** | Machine-readable list of which deployed systems are currently unsafe | Not built | Paid, for exchanges, custodians, and insurers. **Unpriced.** |
+
+No prices are stated. Nobody has been asked what they'd pay, and an invented number would be exactly the unmeasured claim the project exists to avoid.
+
+## Landscape
+
+| Category | Examples | Where they stop |
+|---|---|---|
+| Rust dependency scanners | `cargo audit`, `cargo-deny`, Dependabot, `osv-scanner` | Report on crates, not circuits. No machine-readable claim a program can consume. |
+| Commercial supply-chain security | Snyk, Socket | General appsec. No on-chain surface. |
+| ZK audit firms | Trail of Bits, Veridise, Zellic, zkSecurity, OpenZeppelin | A snapshot with no enforced expiry. **Natural partners**: an audit could be what a higher-tier passport attests. |
+| ZK bug catalogues | 0xPARC zk-bug-tracker, zkSecurity zkBugs | Education, not a live exposure feed |
+| On-chain monitoring and response | Hypernative, Forta, OpenZeppelin Defender | Watch chain behaviour. A counterfeit ZK proof looks valid. **Complementary**: their pause button can consume Halflife's signal. |
+| Static and formal circuit tools | Picus, ZK Vanguard, Circomspect | "Is my circuit wrong?" rather than "did a library I trust just become wrong?" |
+
+### Where Halflife is different
+
+1. **It joins things that are normally separate:** advisory data, then the dependency graph, then a signed claim, then an on-chain halt.
+2. **The unit is the circuit**, not the crate.
+3. **It fails safe by construction.** Monitoring tools fail open.
+4. **It's honest about depth**, with C0–C5 tiers and only C1 claimed.
+5. **The free layer is the wedge**: a CI gate that's useful to one team on day one.
+
+### Where it's weaker
+
+No customers, brand, sales team, or audited code. Incumbents could add an advisory-aware feature. **No moat is claimed.** The defence is an open, frozen spec and a head start on the on-chain half.
+
+## Go-to-market
+
+| Phase | Move | Done when |
+|---|---|---|
+| 1. Free wedge | CI gate in a team's pipeline | Repos running the gate (0 today) |
+| 2. Credibility | File missing RustSec advisories, notify maintainers | Merged advisory, maintainer replies |
+| 3. Proof | Public, checkable fire drills | Drills run for named external teams |
+| 4. Design partners | 3–5 teams with real halo2 or Noir circuits | Signed letters of intent |
+| 5. Paid | Monitor first, Feed later | First paid design partner |
+
+## Demand validation, honestly
+
+| Measure | Today |
+|---|---|
+| Teams that have run it outside the founder | 0 |
+| Paying or committed customers | 0 |
+| Maintainers of affected crates notified | 3 of 4 (11 Oct 2026) |
+
+**Kill criteria:** if after ten genuine conversations no team would put the gate in CI or pay for monitoring, Monitor and Feed don't get built, and the project remains a free public tool plus the spec.
+
+## Risks
+
+- Value concentrates in incidents, which are rare.
+- Halting a protocol is a hard ask. CI and monitoring are the realistic first adopters.
+- There's no engine above C1, and automated soundness discovery is an open research problem.
+- A stolen issuer key can grief. That's bounded by quorum.
+- The on-chain program is unaudited and single-keyed.
+- Solo founder.
+
+## Team
+
+Solo founder: **Emmanuel Aje** ([GitHub: Nailer](https://github.com/Nailer)), full-stack blockchain developer. The code was written by Claude (Anthropic) under the founder's direction. The founder set the thesis and decisions, reviewed the output, ran the deployments, and owns the result.
+
+## The next 90 days
+
+| By | Outcome |
+|---|---|
+| Day 30 | Maintainer notices answered, RustSec advisories filed, 10 outreach conversations |
+| Day 60 | CI gate in at least 2 external repos, and a sizing exercise of the on-chain verifier population |
+| Day 90 | One Monitor design partner with a stated price, or the kill criterion applied |
+
+An independent audit of the on-chain program comes before any claim that Halflife is safe to depend on in production.

@@ -1,0 +1,60 @@
+---
+title: "Glossary"
+description: "Every term used in these docs, defined technically and in plain language."
+icon: "book-a"
+---
+
+| Term | Technical definition | Plain language |
+|---|---|---|
+| **Absence is not permission** | Invariant I4: a missing passport resolves to a blocking decision (`Block::Missing`, `NoPassport()`) | No label means stop |
+| **Advisory** | A published vulnerability record (GHSA, CVE, RUSTSEC, OSV ID) for specific package versions | A public "this version has a problem" notice |
+| **`advisory_count`** | `u16` count of matched advisories in the core. A signal, never a policy input. | How many problems were found |
+| **Aggregation ISM** | A Hyperlane ISM requiring *m* of *n* sub-modules to verify | Several independent witness groups who must agree |
+| **Anchor** | A Rust framework for Solana programs | A toolkit for writing Solana programs |
+| **Audience** | `PUBLIC` or `OPERATOR`. A query parameter that controls which findings are assembled. | Who's asking: the public or an insider |
+| **Blast radius** | The affected/clean/not-reached partition from `impact` | Everything a bad library would hurt |
+| **Borsh** | Binary serialization format used by Solana and Hyperlane | A compact way of packing data into bytes |
+| **C0–C5** | Capability tiers: none, structural, constraint consistency, differential, adversarial soundness, independent methodology | Levels of how thorough a check was |
+| **Canonical bytes** | The 125-byte fixed-width LE encoding of `PassportCore` | The exact byte layout of the label |
+| **Circuit** | The constraint system defining a zero-knowledge statement | The rules a ZK proof must satisfy |
+| **`circuit_hash`** | SHA-256 build fingerprint over subject and closure (v1) | The ID of a specific build |
+| **Closure (dependency)** | The full resolved set of packages a build uses, from `Cargo.lock` | Every library a project really uses |
+| **Compute unit (CU)** | Solana's measure of execution cost. Default tx budget 200,000. | How much work a transaction does |
+| **Consumer** | A program or contract that gates work on a passport | The project that obeys the label |
+| **CPI** | Cross-Program Invocation: one Solana program calling another | One program calling another |
+| **Devnet** | Solana's public development network | A free test version of Solana |
+| **Disclosure state** | `PUBLIC` or `EMBARGOED` on `Evidence`. Defaults to `EMBARGOED`. | Whether a finding may be discussed publicly |
+| **Dispatch** | Sending a message through Hyperlane's outbox | Mailing the label to another chain |
+| **Domain (Hyperlane)** | A numeric chain identifier (e.g. Solana devnet `1399811151`, Base Sepolia `84532`) | A chain's postal code |
+| **Ed25519** | An elliptic-curve signature scheme (RFC 8032) | The kind of digital signature used |
+| **Ed25519 sigverify precompile** | Solana's native program `Ed25519SigVerify111…` that verifies signatures cheaply | Solana's built-in signature checker |
+| **Effective status** | `VALID`, `STALE`, or `INVALID` as resolved by a reader's clock | What the label means right now |
+| **Embargo** | A period during which a finding isn't publicly attributed | Keeping quiet while maintainers fix things |
+| **Evidence** | The off-chain JSON record a passport is issued over | The full detailed report |
+| **`evidence_hash`** | SHA-256 of the canonical evidence JSON | The report's fingerprint |
+| **Fire drill** | A controlled threat scenario run against devnet with a re-verifiable ledger | A recorded emergency rehearsal |
+| **GHSA** | GitHub Security Advisory identifier | GitHub's ID for a vulnerability |
+| **High-water mark** | The highest sequence seen per `(circuit, issuer)`. Anything ≤ it is rejected. | The latest label number remembered |
+| **Hyperlane** | A permissionless interchain messaging protocol | A messenger between blockchains |
+| **INVALID** | Signed status `2`: an issuer reported a problem | Red: problem found |
+| **ISM** | Interchain Security Module: verifies a message before the mailbox delivers it | The rules for believing a cross-chain message |
+| **Issuer** | An ed25519 key that signs passports | Whoever vouches for a check |
+| **LiteSVM** | A fast in-process Solana VM for testing | A mini Solana for tests |
+| **Mailbox** | Hyperlane's core contract/program for sending and receiving messages | The post office |
+| **OSV** | Open Source Vulnerabilities database and API (osv.dev) | A public vulnerability database |
+| **Passport** | Signed 125-byte core plus envelope | The safety label |
+| **PDA** | Program Derived Address: a deterministic address a program can sign for | An address only a specific program controls |
+| **Projection** | Computing the blast radius of a dependency version over the registry | Working out who is affected |
+| **Proof of possession** | Signature proving control of a key, bound to the registrant | Proving the key is really yours |
+| **Quorum** | Requiring *n* of *m* trusted issuers to agree | Needing several checkers to agree |
+| **Registry (on-chain)** | `halflife_passport`, the canonical passport state | The official record |
+| **Registry (local)** | SQLite `halflife.db` with a reverse index | Your local notebook of projects |
+| **Relayer** | An off-chain agent that carries Hyperlane messages between chains | The courier |
+| **Reverse index** | `(name, version) → circuits` lookup | "Who uses this library?" |
+| **Sealevel** | Solana's parallel runtime. It serialises only on writable accounts. | Why many programs can read at once |
+| **`sequence`** | Signed `u64`, monotonic per `(circuit, issuer)` | The label's version number |
+| **STALE** | Reader-derived: `VALID` and `now ≥ expires_at`. **Not issuable.** | Amber: out of date |
+| **Supersede** | Replace a passport with one of a strictly higher sequence from the same issuer for the same circuit | A newer label replacing an older one |
+| **TTL** | `expires_at − issued_at` | How long a label lasts |
+| **VALID** | Signed status `1`, not yet expired | Green: OK for now |
+| **Zero-knowledge proof** | A proof that a statement is true without revealing the witness | Proving something without revealing the secret |

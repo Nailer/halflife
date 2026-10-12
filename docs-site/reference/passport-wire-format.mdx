@@ -1,0 +1,130 @@
+---
+title: "Passport wire format"
+description: "Security Passport v1.0.0, frozen. The 125-byte canonical encoding, signing preimage, JSON rules, and invariants every implementation must honour."
+icon: "binary"
+---
+
+<Info>
+**Status: frozen at v1.0.0** (`v1.0.0-format`). The format is the contract between four runtimes. Changing it would mean a migration across Rust, Solana, the EVM, and the browser, and every published passport.
+</Info>
+
+A passport is a signed, machine-readable claim about **what was verified** on an exact circuit build. It isn't a claim that the circuit is safe, and no field in it should be read that way.
+
+## Canonical encoding
+
+`PassportCore` is **fixed-width little-endian**. This byte layout is both the **Solana account payload** and the **signing preimage**. There's exactly one serialization, so signatures produced off-chain verify on-chain unchanged.
+
+| Offset | Len | Field | Type | Notes |
+|---:|---:|---|---|---|
+| 0 | 1 | `version` | u8 | Must be `1` |
+| 1 | 32 | `circuit_hash` | bytes32 | Build fingerprint |
+| 33 | 32 | `issuer` | bytes32 | ed25519 pubkey = Solana pubkey |
+| 65 | 8 | `sequence` | u64 LE | Monotonic per `(circuit_hash, issuer)` |
+| 73 | 1 | `capability` | u8 | Tier `0`–`5` |
+| 74 | 1 | `status` | u8 | `1` = VALID, `2` = INVALID. Anything else is rejected. |
+| 75 | 8 | `issued_at` | i64 LE | Unix seconds |
+| 83 | 8 | `expires_at` | i64 LE | Unix seconds |
+| 91 | 32 | `evidence_hash` | bytes32 | SHA-256 of canonical evidence JSON |
+| 123 | 2 | `advisory_count` | u16 LE | Signal only |
+| | **125** | | | **Total** |
+
+<Accordion title="In plain terms" icon="lightbulb">
+The label is always exactly 125 bytes, and every piece sits at a fixed position, like boxes on a printed form. Byte 0 is the version, bytes 1–32 identify the circuit, and so on. Numbers are stored "little-endian" (least significant byte first), the way most computers store them natively. Because the layout never changes, every system reads it the same way.
+</Accordion>
+
+### Worked example (`valid_c1_seq1`)
+
+```text
+01                                                                  version = 1
+1111111111111111111111111111111111111111111111111111111111111111    circuit_hash
+d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a    issuer
+0100000000000000                                                    sequence = 1
+01                                                                  capability = C1
+01                                                                  status = VALID
+00f1536500000000                                                    issued_at = 1700000000
+8042556500000000                                                    expires_at = 1700086400
+2222222222222222222222222222222222222222222222222222222222222222    evidence_hash
+0000                                                                advisory_count = 0
+```
+
+## Signing
+
+```text
+signature = Ed25519( "halflife-passport-v1" || canonical_bytes )
+```
+
+- The **domain separator** (20 ASCII bytes) prevents a Halflife signature from being replayed as a signature over another protocol's message.
+- Ed25519 because Solana's sigverify precompile accepts it natively, and an issuer identity is then just a Solana address.
+- `issuer_id` (base58) travels alongside for readability. A verifier **MUST reject** any passport where it disagrees with the `issuer` bytes inside the signed core.
+
+## JSON encoding
+
+```json
+{
+  "core": {
+    "version": 1,
+    "circuit_hash": "<64 lowercase hex>",
+    "issuer": "<64 lowercase hex>",
+    "sequence": "1",
+    "capability": "C1",
+    "status": "VALID",
+    "issued_at": "1700000000",
+    "expires_at": "1700086400",
+    "evidence_hash": "<64 lowercase hex>",
+    "advisory_count": 0
+  },
+  "issuer_id": "<base58>",
+  "signature": "<128 lowercase hex>"
+}
+```
+
+### JSON encoding of 64-bit fields
+
+`sequence`, `issued_at`, and `expires_at` are JSON **strings**, and a reader **must refuse** a JSON number for them.
+
+That isn't a style choice. A JSON number is a float64 in every runtime that matters, so any value above 2⁵³ corrupts silently. A `sequence` of `u64::MAX` reads back as 2⁶⁴ and then fails to encode at all. The conformance vectors caught this **before the format froze**, which is exactly what they exist for.
+
+Refusing numbers outright, rather than accepting small ones, is deliberate. Leniency would let a producer emit a corrupted value that passes everywhere except at the boundary. The Rust error reads: `u64 must be a JSON string, not a number (float64 loses precision above 2^53)`.
+
+<Accordion title="In plain terms" icon="lightbulb">
+JavaScript and many other languages can't store very large whole numbers exactly. They quietly round them. To stop large counters and dates from being silently altered, these three values are always written in quotes, as text. A reader that receives them without quotes must refuse, so the mistake is caught immediately instead of causing a subtle error later.
+</Accordion>
+
+## Status semantics
+
+```text
+INVALID                      -> INVALID   (at any time)
+VALID and now >= expires_at  -> STALE
+VALID and now <  expires_at  -> VALID
+```
+
+`STALE` is **never issuable**. See [Status and staleness](/concepts/status-and-staleness).
+
+## Rules every implementation must enforce
+
+| Rule | Reference |
+|---|---|
+| Reject `version != 1` | `UnsupportedVersion` |
+| Reject status bytes other than 1 and 2 | `UnknownStatus` |
+| Reject capability above 5 | `UnknownCapability` |
+| Reject `issued_at > now + 300` | `MAX_CLOCK_SKEW_SECS` |
+| Reject `expires_at <= issued_at` | |
+| Reject `issuer_id` ≠ `issuer` | Issuer binding |
+| Reject JSON numbers for 64-bit fields | Strict strings |
+| Accept only if `issued_at >= registered_at` and, if revoked, `now < revoked_at && issued_at < revoked_at` | Forward-only revocation |
+| Supersede only on same `(circuit_hash, issuer)` and strictly greater `sequence` | Replay defence |
+| **Absence blocks** | `Block::Missing` |
+
+## What is deliberately not in the core
+
+| Not in core | Why |
+|---|---|
+| `STALE` | Freshness can't be self-asserted |
+| `disclosure` | It would announce that an embargo exists |
+| Chain/domain ID | It would need one signature per destination and destroy portability |
+| Dependency list | Unbounded size. It's bound via `evidence_hash`. |
+| Severity or score | Not defensible. The capability tier is used instead. |
+
+## Multi-issuer
+
+The core binds exactly one issuer. *n*-of-*m* is the consumer checking *n* accounts. v1 has no aggregate signatures.

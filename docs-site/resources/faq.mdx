@@ -1,0 +1,85 @@
+---
+title: "FAQ"
+description: "Short answers to the questions people ask most, from 'what is this?' to 'can a relayer hold my circuit open?'"
+icon: "message-circle-question"
+---
+
+## For everyone
+
+<AccordionGroup>
+  <Accordion title="What is Halflife, in one sentence?">
+    A use-by date for cryptographic security: a signed, expiring label saying what was checked about a zero-knowledge circuit, which programs on-chain read and obey automatically.
+  </Accordion>
+  <Accordion title="Do I need to understand blockchains to use it?">
+    No. To check whether a Rust project depends on vulnerable libraries, paste its `Cargo.lock` into [Check yours](/get-started/check-yours). The blockchain parts matter only if you run an on-chain protocol.
+  </Accordion>
+  <Accordion title="Does a green (VALID) passport mean my circuit is safe?">
+    **No.** It means a specific check was run on a specific build and found nothing, and that the check hasn't expired. Today that check is **C1**: matching your dependencies against *published* advisories. It doesn't find new bugs in your own circuit.
+  </Accordion>
+  <Accordion title="Why is it called Halflife?">
+    Because the evidentiary value of a security check decays as analysis tools improve, much like radioactive material decays. The `expires_at` date forces that decay to be acknowledged.
+  </Accordion>
+  <Accordion title="Is it free?">
+    The scan, the CI gate, registry reads, and the spec are intended to be free forever. Paid layers (continuous monitoring and a machine-readable feed) aren't built or priced. See [Product and business](/resources/product-and-business).
+  </Accordion>
+</AccordionGroup>
+
+## For developers
+
+<AccordionGroup>
+  <Accordion title="Why does it flag things cargo audit doesn't?">
+    `cargo audit` reads RustSec, which has **no entry** for `halo2_gadgets`, `orchard`, or `zcash_primitives`. Halflife queries OSV, which carries GHSA-ww9q-8r59-xv46.
+  </Accordion>
+  <Accordion title="Why so many findings on my workspace?">
+    C1 counts every advisory in the lockfile, including test and tooling dependencies and "unmaintained" notices. There's no severity or reachability filter. Start the CI gate with `deny: "false"` and triage.
+  </Accordion>
+  <Accordion title="Can I run it without network access?">
+    Yes: `--offline --snapshot <file>`. The snapshot only knows the advisories it was built with.
+  </Accordion>
+  <Accordion title="Does it support npm, Go, Noir, circom…?">
+    Not yet. Only Cargo lockfiles are parsed. Other ZK stacks are the planned expansion.
+  </Accordion>
+  <Accordion title="Can I use my existing Solana keypair as an issuer key?">
+    Yes. The issuer key file **is** the Solana keypair format, and an issuer ID is a Solana address.
+  </Accordion>
+</AccordionGroup>
+
+## For protocol teams
+
+<AccordionGroup>
+  <Accordion title="So you can turn my protocol off?">
+    No. **Your program owns the policy.** You choose which issuers you trust (including *n*-of-*m*), which capability you require, and which circuit hash you expect. Halflife publishes state and never decides what you require. What's true: if you trust an issuer and that issuer publishes `INVALID`, your program stops, as you configured it to.
+  </Accordion>
+  <Accordion title="Can a relayer or network outage keep a vulnerable circuit running?">
+    No. That's the core design property. Passports expire on their own, and an expired passport reads as `STALE`, which blocks. Suppressing messages only ever produces "stop".
+  </Accordion>
+  <Accordion title="What happens if I forget to renew?">
+    Your program blocks with `PassportStale`. That's the fail-safe working. Automate renewal well within your TTL.
+  </Accordion>
+  <Accordion title="What does a check cost?">
+    About **1,520 CU** on Solana, including deserialization and dispatch. That's 0.76% of a default transaction budget.
+  </Accordion>
+  <Accordion title="What if there's no passport for my circuit?">
+    Your program blocks. Absence is not permission.
+  </Accordion>
+  <Accordion title="Is cross-chain delivery live?">
+    The origin leg (Solana → Hyperlane mailbox) is real on devnet. Delivery to a destination chain on a public network **isn't demonstrated yet**. The destination contracts run against a local chain.
+  </Accordion>
+</AccordionGroup>
+
+## For security reviewers
+
+<AccordionGroup>
+  <Accordion title="Has the on-chain program been audited?">
+    **No external audit.** Two access-control holes were found in self-review and fixed with attack tests. See [Self-review findings](/security/self-review-findings).
+  </Accordion>
+  <Accordion title="What if an issuer key is stolen?">
+    The attacker can publish `INVALID` and halt consumers that trust that issuer. That's the cost of failing closed, bounded by consumer quorum. Revocation is forward-only. Threshold signing is on the roadmap.
+  </Accordion>
+  <Accordion title="Why doesn't the EVM side verify the ed25519 signature?">
+    The EVM has no ed25519 precompile, and verifying in Solidity costs more than it's worth. The destination inherits Solana's verification via Hyperlane's authenticated transport.
+  </Accordion>
+  <Accordion title="Is embargo-via-staleness confidential?">
+    **No.** It's quieter than publishing `INVALID`, but correlated staleness is visible on-chain.
+  </Accordion>
+</AccordionGroup>

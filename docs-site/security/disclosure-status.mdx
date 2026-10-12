@@ -1,0 +1,49 @@
+---
+title: "Disclosure status"
+description: "Live tracking of Halflife's disclosure obligations, including the one that's still unresolved and the inconsistency the project has recorded against itself."
+icon: "clipboard-list"
+---
+
+<Info>
+These docs follow the [disclosure policy](/security/disclosure-policy) and **don't name** the affected third-party crates while the notice period is running.
+</Info>
+
+<Accordion title="In plain terms" icon="lightbulb">
+Halflife found that four published software packages use an affected library version. Under its own rules, it has to warn their maintainers and wait before naming them. This page tracks that process openly, including where the project fell short of its own rules.
+</Accordion>
+
+## Current position
+
+**Four published crates in the registry resolve to `halo2_gadgets` versions affected by [GHSA-ww9q-8r59-xv46](https://osv.dev/vulnerability/GHSA-ww9q-8r59-xv46).** They're not named in the live control room's exports.
+
+| | |
+|---|---|
+| Finding derived | 28 September 2026 |
+| Maintainers notified | 11 October 2026: **3 of 4** by public GitHub issue. The fourth wasn't reached: its repository has issues disabled and no security contact. |
+| Notice period | 14 days from notification, to **25 October 2026** |
+| Public naming permitted | 25 October 2026 for the three notified. Not for the fourth until a channel is found. |
+
+## How the finding is presented before the clock runs
+
+- **Public audience:** `halflife impact halo2_gadgets@0.4.0` returns only the fixtures. The four real crates are absent entirely, and the result is indistinguishable from a dependency nothing uses.
+- **Operator audience:** `--operator` returns the full affected set.
+
+That's the embargo mechanism running on a **real** embargo, which is better evidence than the names would have been.
+
+## Where this is still inconsistent
+
+The repository is public, and `fixtures/fleet/` contains a directory per crate (and `scripts/build-fleet.py` lists them). So the names are public in the repository, even though the live exports don't carry them.
+
+The project records this rather than leaving it for someone else to notice. The fixtures exist because findings have to be reproducible, and a scan nobody can re-run isn't evidence. The underlying facts are already public: the advisory is published, and each crate's dependency requirement is visible on crates.io. What the policy treats as disclosure is the *aggregation*, and the repository performs that aggregation. The resolution is notification, done for three of four.
+
+The repository was originally kept private for exactly this reason. It was made public before notices went out, because the hackathon judges on open source. The project didn't amend the policy to make the dates work. It records the consequence instead.
+
+## A leak that was live
+
+The public export carried all four names until **3 October 2026**. The circuit list filtered correctly, but the dependency index didn't: a fixture's own root package name appears inside its closure, so listing dependencies without an audience filter published exactly the names the circuit filter was hiding. The leak tests covered `reached_by` and `visible_circuits`, but never `known_dependencies`.
+
+It was fixed, along with the test that should have existed: `the_dependency_index_does_not_leak_embargoed_names`.
+
+<Note>
+**The lesson:** filtering has to cover every surface, and a leak test that covers the obvious path is the one most likely to miss.
+</Note>

@@ -1,0 +1,283 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Halflife",
+  "description": "A use-by date for cryptographic security. Signed, expiring security passports for zero-knowledge circuits, enforced on Solana and propagated over Hyperlane.",
+  "colors": {
+    "primary": "#D29922",
+    "light": "#E3B341",
+    "dark": "#9A6700"
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "https://halflife-control-room.vercel.app"
+  },
+  "favicon": "/favicon.svg",
+  "appearance": {
+    "default": "dark"
+  },
+  "background": {
+    "decoration": "grid"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "navbar": {
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/Nailer/halflife"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Open the control room",
+      "href": "https://halflife-control-room.vercel.app"
+    }
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude", "perplexity"]
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "icon": "book-open",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "index",
+              "get-started/what-is-halflife",
+              "get-started/who-is-it-for",
+              "get-started/quickstart",
+              "get-started/installation",
+              "get-started/check-yours"
+            ]
+          },
+          {
+            "group": "Core concepts",
+            "pages": [
+              "concepts/the-problem",
+              "concepts/security-passport",
+              "concepts/status-and-staleness",
+              "concepts/capability-ladder",
+              "concepts/circuit-identity",
+              "concepts/issuers",
+              "concepts/supersession-and-replay",
+              "concepts/consumer-policy",
+              "concepts/impact-projection",
+              "concepts/disclosure-and-embargo"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/lifecycle",
+              "architecture/lineage",
+              "architecture/registry",
+              "architecture/solana-enforcement",
+              "architecture/hyperlane-propagation",
+              "architecture/evm-destination",
+              "architecture/control-room",
+              "architecture/repository-layout"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "icon": "compass",
+        "groups": [
+          {
+            "group": "Use Halflife",
+            "pages": [
+              "guides/scan-a-project",
+              "guides/ci-github-action",
+              "guides/registry-and-impact",
+              "guides/verify-a-passport"
+            ]
+          },
+          {
+            "group": "Enforce on-chain",
+            "pages": [
+              "guides/integrate-solana-program",
+              "guides/integrate-evm-contract",
+              "guides/cross-chain-demo"
+            ]
+          },
+          {
+            "group": "Operate",
+            "pages": [
+              "guides/run-fire-drills",
+              "guides/hyperlane-dispatch",
+              "guides/deploy-programs",
+              "guides/control-room-local",
+              "guides/self-passport",
+              "guides/verify-everything"
+            ]
+          },
+          {
+            "group": "Extend",
+            "pages": ["guides/implement-the-spec"]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "icon": "code",
+        "groups": [
+          {
+            "group": "Command line",
+            "pages": [
+              "reference/cli",
+              "reference/exercise-cli",
+              "reference/github-action",
+              "reference/configuration",
+              "reference/scripts"
+            ]
+          },
+          {
+            "group": "Formats",
+            "pages": [
+              "reference/passport-wire-format",
+              "reference/evidence-format",
+              "reference/conformance-vectors",
+              "reference/export-schema",
+              "reference/exercise-records",
+              "reference/registry-schema"
+            ]
+          },
+          {
+            "group": "On-chain",
+            "pages": [
+              "reference/solana-passport-program",
+              "reference/solana-consumer-program",
+              "reference/evm-contracts"
+            ]
+          },
+          {
+            "group": "Libraries",
+            "pages": ["reference/rust-core-api", "reference/rust-crates"]
+          },
+          {
+            "group": "Errors",
+            "pages": ["reference/errors"]
+          }
+        ]
+      },
+      {
+        "tab": "Security",
+        "icon": "shield",
+        "groups": [
+          {
+            "group": "Security model",
+            "pages": [
+              "security/overview",
+              "security/invariants",
+              "security/trust-boundaries",
+              "security/ism-configuration",
+              "security/self-review-findings",
+              "security/known-limits"
+            ]
+          },
+          {
+            "group": "Disclosure",
+            "pages": [
+              "security/disclosure-policy",
+              "security/disclosure-status",
+              "security/reporting"
+            ]
+          },
+          {
+            "group": "Accountability",
+            "pages": ["security/commitments"]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "icon": "library",
+        "groups": [
+          {
+            "group": "Facts and figures",
+            "pages": [
+              "resources/measurements",
+              "resources/deployments",
+              "resources/roadmap"
+            ]
+          },
+          {
+            "group": "Help",
+            "pages": [
+              "resources/faq",
+              "resources/glossary",
+              "resources/troubleshooting"
+            ]
+          },
+          {
+            "group": "Project",
+            "pages": [
+              "resources/product-and-business",
+              "resources/contributing",
+              "resources/changelog"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Live control room",
+          "icon": "monitor",
+          "href": "https://halflife-control-room.vercel.app"
+        },
+        {
+          "anchor": "GitHub",
+          "icon": "folder-git-2",
+          "href": "https://github.com/Nailer/halflife"
+        },
+        {
+          "anchor": "Passport program (devnet)",
+          "icon": "box",
+          "href": "https://explorer.solana.com/address/CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2?cluster=devnet"
+        }
+      ]
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/Nailer/halflife",
+      "website": "https://halflife-control-room.vercel.app"
+    },
+    "links": [
+      {
+        "header": "Product",
+        "items": [
+          { "label": "Control room", "href": "https://halflife-control-room.vercel.app" },
+          { "label": "GitHub Action", "href": "/reference/github-action" },
+          { "label": "Quickstart", "href": "/get-started/quickstart" }
+        ]
+      },
+      {
+        "header": "Specification",
+        "items": [
+          { "label": "Passport wire format", "href": "/reference/passport-wire-format" },
+          { "label": "Capability ladder", "href": "/concepts/capability-ladder" },
+          { "label": "Conformance vectors", "href": "/reference/conformance-vectors" }
+        ]
+      },
+      {
+        "header": "Trust",
+        "items": [
+          { "label": "Security model", "href": "/security/overview" },
+          { "label": "Disclosure policy", "href": "/security/disclosure-policy" },
+          { "label": "Known limits", "href": "/security/known-limits" }
+        ]
+      }
+    ]
+  }
+}

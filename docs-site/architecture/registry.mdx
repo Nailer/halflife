@@ -1,0 +1,118 @@
+---
+title: "Registry layer"
+description: "Two registries: the canonical on-chain passport registry on Solana, and a local SQLite fleet registry with a reverse dependency index for impact projection."
+icon: "database"
+---
+
+"Registry" means two different things in Halflife, and keeping them apart avoids confusion.
+
+| | On-chain registry | Local fleet registry |
+|---|---|---|
+| What | `halflife_passport` program on Solana | `halflife-registry` crate (SQLite) |
+| Holds | Issuer records, passport PDAs, config, routes | Circuits, closures, advisory hits, passport history |
+| Authority | **Canonical.** Consumers enforce against it. | **Intelligence.** Answers "what depends on X?" |
+| Written by | `publish`, `register_issuer`, `set_route`, … | `halflife register` |
+| Read by | Consumer programs, `dispatch`, the browser | `halflife impact`, `registry list/deps`, `export` |
+
+<Accordion title="In plain terms" icon="lightbulb">
+There's an **official record** on the Solana blockchain that programs actually obey, and a **local notebook** (a small database file) that remembers every project you've scanned so you can quickly ask "who uses this library?". The notebook helps you investigate. The blockchain record is what enforces.
+</Accordion>
+
+## The local fleet registry
+
+Deliberately local and boring: SQLite, one file (`halflife.db` by default), no service. Projection reads it through the `RegistrySource` port, so it stays pure and testable.
+
+### Schema
+
+```sql
+CREATE TABLE circuits (
+    circuit_hash  TEXT PRIMARY KEY,
+    name          TEXT NOT NULL,
+    repository    TEXT NOT NULL,
+    commit_hash   TEXT NOT NULL,
+    proof_system  TEXT NOT NULL,
+    registered_at INTEGER NOT NULL
+);
+
+CREATE TABLE dependencies (
+    circuit_hash TEXT NOT NULL REFERENCES circuits(circuit_hash) ON DELETE CASCADE,
+    name         TEXT NOT NULL,
+    version      TEXT NOT NULL,
+    checksum     TEXT,
+    PRIMARY KEY (circuit_hash, name, version)
+);
+CREATE INDEX idx_dependencies_reverse ON dependencies(name, version);
+
+CREATE TABLE advisory_hits (
+    circuit_hash TEXT NOT NULL REFERENCES circuits(circuit_hash) ON DELETE CASCADE,
+    dep_name     TEXT NOT NULL,
+    dep_version  TEXT NOT NULL,
+    advisory_id  TEXT NOT NULL,
+    PRIMARY KEY (circuit_hash, dep_name, dep_version, advisory_id)
+);
+CREATE INDEX idx_advisory_hits_id ON advisory_hits(advisory_id);
+
+CREATE TABLE passports (
+    circuit_hash  TEXT NOT NULL,
+    issuer        TEXT NOT NULL,
+    sequence      INTEGER NOT NULL,
+    status        TEXT NOT NULL,
+    capability    INTEGER NOT NULL,
+    issued_at     INTEGER NOT NULL,
+    expires_at    INTEGER NOT NULL,
+    disclosure    TEXT NOT NULL,
+    passport_json TEXT NOT NULL,
+    evidence_json TEXT,              -- NULL while embargoed
+    PRIMARY KEY (circuit_hash, issuer, sequence)
+);
+```
+
+Full column reference: [Registry schema](/reference/registry-schema).
+
+### Write semantics
+
+`Store::register(evidence, signed, now)` runs in **one transaction**:
+
+1. Upsert the circuit row.
+2. **Replace** its closure: delete and re-insert `dependencies` and `advisory_hits`. A closure is a fact about one build, so re-resolving it means it changed.
+3. **Append** the passport (`INSERT OR REPLACE` keyed by `(circuit_hash, issuer, sequence)`). Passport history is append-only.
+4. Store `evidence_json` **only if the evidence is `PUBLIC`**.
+
+### Read API
+
+| Method | Returns |
+|---|---|
+| `circuits()` | Every registered circuit, ordered by name |
+| `latest_passport(circuit_hash)` | Highest-sequence passport row, or `None` |
+| `dependents(name, version)` | Every circuit reaching `name@version`, with advisories |
+| `known_dependencies(audience)` | `(name, version, circuit_count)`, filtered by audience |
+| `dependency_count(circuit_hash)` | Closure size |
+| `reached_by` / `visible_circuits` | The `RegistrySource` port used by projection |
+
+### Status reporting
+
+`registry list` and `export` resolve status at read time, the same way consumers do:
+
+```text
+INVALID                    → INVALID
+VALID and now ≥ expires_at → STALE
+VALID                      → VALID
+no passport                → NONE   (absence is not permission)
+```
+
+## The on-chain registry
+
+| Account | Seeds | Purpose |
+|---|---|---|
+| `Config` | `["config"]` | Registry admin (controls routes only) |
+| `IssuerRecord` | `["issuer", key]` | Issuer lifecycle |
+| `Passport` | `["passport", circuit_hash, issuer]` | Current passport per `(circuit, issuer)` |
+| `DispatchRoute` | `["route", destination_domain_le]` | Hyperlane route per destination domain |
+
+**Publication is permissionless.** Anyone can submit a passport. The program verifies the issuer's ed25519 signature over the canonical 125-byte core through the sigverify precompile. Issuers never need SOL, never sign a Solana transaction, and can be offline or threshold-controlled.
+
+See [Solana enforcement](/architecture/solana-enforcement) and the [program reference](/reference/solana-passport-program).
+
+## Keeping them in agreement
+
+A circuit can be registered locally and absent on-chain. That's correct behaviour, but it makes the browser's live read report "not found" for everything in the fleet. `halflife-exercise publish <circuit_hash>` publishes a passport for a registered circuit so the fleet and the chain agree.

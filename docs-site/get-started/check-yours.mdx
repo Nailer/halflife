@@ -1,0 +1,59 @@
+---
+title: "Check yours"
+description: "Paste a Cargo.lock into the live control room and get the verdict the C1 rule would give, computed in your browser against OSV."
+icon: "search-check"
+---
+
+The quickest way to use Halflife is the **Check yours** view on the [live control room](https://halflife-control-room.vercel.app/#app/check). You don't need to install anything, create an account, or provide a key.
+
+<Steps>
+  <Step title="Open the view">
+    Go to [halflife-control-room.vercel.app](https://halflife-control-room.vercel.app) and choose **Check yours** in the top navigation.
+  </Step>
+  <Step title="Paste a lockfile">
+    Paste the contents of any `Cargo.lock`. Two examples are bundled if you want to see both outcomes: `orchard-vulnerable.lock` and `orchard-patched.lock`.
+  </Step>
+  <Step title="Read the verdict">
+    You get **would pass** or **would fail**, the number of packages checked, and every package with the advisory IDs that matched it.
+  </Step>
+</Steps>
+
+## What happens technically
+
+1. The page parses the lockfile in the browser. It splits on `[[package]]` and extracts `name`, `version`, and `source`.
+2. Only **registry** packages are kept (a `source` beginning with `registry+` or `sparse+`). Path and git dependencies have no crates.io identity in OSV and are skipped.
+3. Packages are de-duplicated by `name@version` and sent in chunks of 500 to `https://api.osv.dev/v1/querybatch` with ecosystem `crates.io`.
+4. Any package with at least one returned vulnerability is a hit. **Any hit fails the C1 rule.**
+
+<Note>
+**Nothing touches Halflife's servers.** Your browser sends crate names and versions directly to `api.osv.dev`, exactly as `halflife scan` does. Nothing is signed, so this is a **preview of the CLI verdict, not a passport**.
+</Note>
+
+<Accordion title="In plain terms" icon="lightbulb">
+Your browser reads the list of libraries in the file you pasted and asks a public vulnerability database, run by Google's Open Source Security team, about each one. If any library has a known problem, the page says your project would fail the check. Your file never goes to Halflife. It stays in your browser apart from the library names sent to the public database.
+</Accordion>
+
+## Why it might fail when `cargo audit` passes
+
+`cargo audit` reads the **RustSec** advisory database. RustSec has no entry for `halo2_gadgets`, `orchard`, or `zcash_primitives`, so on a tree pinned to the vulnerable versions it **reports clean**. The advisory exists in GitHub's database and OSV (**GHSA-ww9q-8r59-xv46 / CVE-2026-54496**, published 6 July 2026), which is what this check and `halflife scan` query.
+
+## Expect noise on large workspaces
+
+<Warning>
+C1 is a blunt instrument. It fails on **any** advisory in the lockfile, with no severity filter, no reachability analysis, and no distinction between runtime and test-only dependencies or between vulnerabilities and "unmaintained" notices. On a real Solana Groth16 verifier library's workspace lockfile (12 October 2026) it returned **14** packages, many of them test and tooling dependencies. Treat a failure as "look at this list", not "you're exploitable".
+</Warning>
+
+<Accordion title="In plain terms" icon="lightbulb">
+The check is deliberately strict. It flags every known issue, even in tools that are only used for testing and never ship to users. That means you may see warnings that don't actually affect you. It's better to look and dismiss than to miss something.
+</Accordion>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Make it permanent in CI" icon="git-pull-request" href="/guides/ci-github-action">
+    Fail pull requests automatically.
+  </Card>
+  <Card title="Produce a signed passport" icon="file-signature" href="/guides/scan-a-project">
+    Run the real scan locally.
+  </Card>
+</CardGroup>

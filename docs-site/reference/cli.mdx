@@ -1,0 +1,183 @@
+---
+title: "halflife CLI"
+description: "Every command, argument, default, output, and exit code of the halflife binary."
+icon: "terminal"
+---
+
+```text
+halflife <COMMAND>
+
+Commands:
+  keygen    Generate an issuer keypair in Solana keypair format
+  scan      Scan a circuit's closure and emit a signed passport to disk
+  register  Scan a circuit and record it in the registry
+  impact    What would break if this dependency became unsafe?
+  registry  Inspect the registry (list, deps)
+  export    Export the whole system state as JSON for the control room
+  verify    Verify a passport's signature and bindings, and resolve its status now
+  vectors   Generate or verify the conformance vectors that pin the wire format
+```
+
+Build with `cargo build --release -p halflife-cli`. The binary is `target/release/halflife`. The CLI runs the **deterministic path only**: no model, capability **C1**.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This page lists every command the tool understands and every option each command accepts. You type them in a terminal, and each one prints a result and returns a number (an exit code) that other programs can read.
+</Accordion>
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success, or nothing to block on |
+| `1` | Error (bad input, I/O, network, signature, binding) |
+| `2` | **Policy block**: `scan --deny` found advisories, `impact` found affected circuits, or `verify` resolved `Stale`/`Invalid` |
+
+---
+
+## `keygen`
+
+Generate an issuer keypair: 64 bytes, `secret ‖ public`, as a JSON array (Solana format).
+
+<ParamField path="--out, -o" type="path" default="issuer.json">
+  Output file. **Refuses to overwrite** an existing file.
+</ParamField>
+
+```text
+issuer  <base58 pubkey>
+written issuer.json
+```
+
+---
+
+## `scan`
+
+Resolve a target's closure, match advisories, and write `evidence.json` and `passport.json`.
+
+```bash
+halflife scan <TARGET> [OPTIONS]
+```
+
+<ParamField path="TARGET" type="path" required>
+  Directory containing `halflife.toml` and `Cargo.lock`.
+</ParamField>
+<ParamField path="--out, -o" type="path" default="<TARGET>/out">
+  Output directory.
+</ParamField>
+<ParamField path="--deny" type="flag">
+  Exit **2** if the closure carries any advisory. This is the CI gate.
+</ParamField>
+
+Shared scan options (also accepted by `register`):
+
+<ParamField path="--issuer, -i" type="path" default="issuer.json">
+  Issuer keypair used to sign.
+</ParamField>
+<ParamField path="--offline" type="flag">
+  Use a pinned advisory snapshot instead of querying OSV.
+</ParamField>
+<ParamField path="--snapshot" type="path" default="fixtures/osv-snapshot.json">
+  Snapshot path, used with `--offline`. Relative to the current directory.
+</ParamField>
+<ParamField path="--ttl" type="i64 seconds" default="86400">
+  Passport lifetime: `expires_at = issued_at + ttl`.
+</ParamField>
+<ParamField path="--sequence" type="u64" default="1">
+  Monotonic sequence for this `(circuit, issuer)`. Must increase on re-issue.
+</ParamField>
+<ParamField path="--disclosure" type="public | embargoed" default="embargoed">
+  Whether the underlying finding may be discussed publicly. Fails closed.
+</ParamField>
+
+Output lines: `closure`, `advisory`, `circuit`, `evidence`, `issuer`, `capability … seq … disclosure …`, one `findings` line per hit (or `findings  none`), `status`, `written`. With `--deny` and findings: `denied    N advisory hit(s) in the closure` on stderr, exit 2.
+
+---
+
+## `register`
+
+Scan a target and record the circuit, closure, advisory hits, and passport in the SQLite registry.
+
+```bash
+halflife register <TARGET> [SCAN OPTIONS] [--registry halflife.db]
+```
+
+<ParamField path="--registry" type="path" default="halflife.db">
+  Registry database file. Created if missing.
+</ParamField>
+
+Prints `registered <circuit_hash[..16]> in <registry>`, plus `evidence withheld — finding is embargoed` when not public.
+
+---
+
+## `impact`
+
+Project the blast radius of a dependency version.
+
+```bash
+halflife impact <NAME@VERSION> [--registry halflife.db] [--operator] [--json]
+```
+
+<ParamField path="NAME@VERSION" type="string" required>
+  For example `halo2_gadgets@0.4.0`. Split on the last `@`.
+</ParamField>
+<ParamField path="--operator" type="flag">
+  Answer as an authorized operator, seeing embargoed findings too. Default audience is **public**.
+</ParamField>
+<ParamField path="--json" type="flag">
+  Emit the `Impact` object as JSON instead of a table.
+</ParamField>
+
+Exit **2** if anything is affected.
+
+---
+
+## `registry list` · `registry deps`
+
+```bash
+halflife registry list [--registry halflife.db]
+halflife registry deps [--registry halflife.db]
+```
+
+- **`list`**: `CIRCUIT · ID · DEPS · STATUS · SUBJECT`, with a summary line `N registered · X invalid · Y clean`. Status is `VALID`, `STALE`, `INVALID`, or `NONE`.
+- **`deps`**: `DEPENDENCY · VERSION · CIRCUITS` for every distinct dependency, as **operator**.
+
+---
+
+## `export`
+
+Dump everything the control room renders.
+
+<ParamField path="--registry" type="path" default="halflife.db" />
+<ParamField path="--exercises" type="path" default="exercises">
+  Directory of exercise and dispatch records. Files with `kind: HYPERLANE_DISPATCH` go to `hyperlaneDispatches`. Files with `exercise_id` and `events` go to `exercises`. Anything else is ignored.
+</ParamField>
+<ParamField path="--out, -o" type="path" default="apps/control-room/public/state.json" />
+<ParamField path="--operator" type="flag">
+  Export the operator view. Without it, **embargoed circuits are absent**, not redacted.
+</ParamField>
+
+See [Export schema](/reference/export-schema).
+
+---
+
+## `verify`
+
+```bash
+halflife verify <PASSPORT> [--evidence <EVIDENCE>] [--at <UNIX>]
+```
+
+<ParamField path="PASSPORT" type="path" required>A `passport.json` (`SignedPassport`).</ParamField>
+<ParamField path="--evidence, -e" type="path">Also confirm `evidence_hash` and `circuit_hash` bind.</ParamField>
+<ParamField path="--at" type="i64" default="now">Evaluate at this Unix time.</ParamField>
+
+Prints `signature ok`, optionally `evidence  binds (N deps)`, then `sequence`, `issued`, `expires`, `evaluated`, `effective`. Exit 2 unless effective is `Valid`. See [Verify a passport](/guides/verify-a-passport).
+
+---
+
+## `vectors generate` · `vectors verify`
+
+```bash
+halflife vectors generate [--out fixtures/vectors.json]
+halflife vectors verify   [fixtures/vectors.json]
+```
+
+`verify` checks the core length, the test key, and for each vector the canonical encoding, the preimage, re-signing (byte-identical, because Ed25519 is deterministic), and that the recorded signature verifies. See [Conformance vectors](/reference/conformance-vectors).

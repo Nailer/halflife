@@ -1,0 +1,71 @@
+---
+title: "Roadmap"
+description: "The build order: stages, gates, what's done, what's next, and the three hard gates."
+icon: "map"
+---
+
+Progress is tracked **in the repository** (`docs/build-order.md`), so tick boxes move in the same commit as the work. Gates are stopping points: work halts at one until a decision is made.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the project plan: what's finished, what's next, and the checkpoints where the project deliberately stops to decide whether to continue.
+</Accordion>
+
+## Proof boundary: done
+
+<Steps>
+  <Step title="Stage 0 · Disclosure first" icon="check">
+    B0.1 disclosure policy before the first scan. B0.2 embargo limits written down. **Gate A approved.**
+  </Step>
+  <Step title="Stage 1 · Freeze the protocol (v1.0.0-format)" icon="check">
+    125-byte core, signed sequence, supersession and replay rules, disclosure off the core, forward-only revocation, clock bounds, absence-is-not-permission, conformance vectors plus an independent implementation. **Gate B frozen.** The vectors caught the JSON-number defect first.
+  </Step>
+  <Step title="Stage 2 · Registry" icon="check">
+    SQLite store, `register`/`list`/`deps`, reverse index, a real fleet of 8 systems. **Gate C confirmed.**
+  </Step>
+  <Step title="Stage 3 · Projection" icon="check">
+    Pure projection crate, disclosure-aware closure, `impact`, leak tests. **Gate D** waived, evidence reported.
+  </Step>
+  <Step title="Stage 4 · Solana enforcement" icon="check">
+    Anchor scaffold, publish/supersede/revoke with ed25519, reference consumer, CU benchmark, devnet deployment. **Gate E** (does the number support the thesis?): 1,520 CU.
+  </Step>
+  <Step title="Stage 5 · Propagation" icon="check">
+    EVM destination, origin dispatch, Aggregation ISM, destination expiry and high-water mark. **Gate F:** kill the relayer and the consumer still blocks.
+  </Step>
+  <Step title="Stage 6 · Fire drill" icon="check">
+    Event ledger, both scenarios, third-party `exercise verify`. **Gate G:** measured, not simulated.
+  </Step>
+</Steps>
+
+## Beyond the proof boundary
+
+| Item | Status |
+|---|---|
+| B7.1 Explorer | Done |
+| B7.2 Control room | Done |
+| B7.3 CI Action (built 12 Oct 2026) | Done |
+| B7.4 Consumer registration (only then may projection claim protocols) | **Open** |
+| B8.1 Halflife's own passport | Done |
+| B8.2 Threshold signing | **Open** |
+| B8.3 Reproducible builds | **Open** |
+| B8.4 Key-compromise drill | **Open** |
+| B9.1 Free surfaces fixed by contract: registry reads, log, spec, SDKs | **Open** |
+| B9.2 Paid: continuous re-verification, private scanning, higher tiers | **Open** |
+
+## Deferred, with a reason
+
+| Item | Why not now | Belongs in |
+|---|---|---|
+| Yank status as tracked data | "Yanked **and** advisory" is a stronger signal, but it's dependency intelligence | P4A |
+| Full transitive closure for the fleet | The fleet tracks four crates | P4A |
+| Optional/dev dependency distinction | Currently a fixture comment | P4A |
+| Severity and reachability filtering | Reduces C1 false positives | Not scheduled |
+| Verifying-key binding (`circuit_hash` v2) | Needs artifact identity | P4B |
+| Other ecosystems (Noir, circom, gnark, zkVMs) | Only Cargo is built | Expansion |
+
+## The three hard gates
+
+| Gate | Blocks | Cost of skipping |
+|---|---|---|
+| **A** Disclosure policy | Registering any third party | A finding about someone else's project with no agreed process |
+| **B** Format freeze | Solana program, EVM contract, SDK | A migration across four runtimes and every published passport |
+| **E** CU benchmark | The Solana thesis itself | Propagation built for enforcement nobody can afford to call |

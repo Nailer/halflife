@@ -1,0 +1,60 @@
+---
+title: "Deployments"
+description: "Every live address: control room, Solana programs, upgrade authority, Hyperlane contracts, and what isn't deployed."
+icon: "globe"
+---
+
+<Accordion title="In plain terms" icon="lightbulb">
+These are the places where Halflife is running right now: the website, and the programs on Solana's public test network. Each address can be looked up on a blockchain explorer.
+</Accordion>
+
+## Control room
+
+**[halflife-control-room.vercel.app](https://halflife-control-room.vercel.app)**: a static build, redeployed with `./scripts/deploy-ui.sh`. The `PUBLIC` / `OPERATOR` toggle loads different exports.
+
+## Solana devnet
+
+| Program | Address |
+|---|---|
+| `halflife_passport` | [`CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2`](https://explorer.solana.com/address/CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2?cluster=devnet) |
+| `halflife_consumer` | [`BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW`](https://explorer.solana.com/address/BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW?cluster=devnet) |
+| Upgrade authority / registry admin | `Azh9zR13hCQiDYuSWZxJNmxarLzdr7uZrfohtUwMVPsh` |
+
+<Warning>
+The single-key upgrade authority is a **known gap, not a design**. It's planned to move to a Squads multisig, then threshold control (B8.2). Builds aren't yet reproducible byte-for-byte (B8.3), so "the deployed program matches this source" is a claim you're asked to take on trust.
+</Warning>
+
+## Hyperlane (Sealevel), Solana devnet
+
+Addresses taken from `hyperlane-monorepo/rust/sealevel/environments/` and verified as deployed.
+
+| | Address |
+|---|---|
+| Mailbox | `5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54` |
+| IGP program | `9N7WmRUVL6b8agkS2GMephafHpwMWKAKAyjoNyW3j4Fi` |
+| Multisig ISM (message id) | `4Q1eZAovdqhihCCZyabX4u5rCJPq5R8YgyKVDCdjzTNV` |
+| Validator announce | `7TfjfmTCuZVSq9mour8obQz2pXGNiEz29EqEEDnoexQ9` |
+| Origin domain | `1399811151` |
+
+Solana testnet mailbox, for reference: `75HBBLae3ddeneJVrZeyrDfv6vb7SMC3aCpBucSXS5aR`.
+
+## Base Sepolia (intended destination, domain `84532`)
+
+See [ISM configuration](/security/ism-configuration#addresses). **No Halflife destination registry is deployed there yet.**
+
+## Real Hyperlane dispatch
+
+| | |
+|---|---|
+| Transaction | `w1WP5rrhXeWDsLmZemcTCy359FUjTjRmLUQSMEtcrLu5XeEPWB2y9apqTkB3YM2uC5jbojKzHNXfL88NuyTrwjk` |
+| Slot | `508440680` |
+| Message ID | `0xbf2a31c24113869bd8a26b80c6b91faecd63224223de8668568ec13966e8abc5` |
+| Route | domain `84532` → placeholder recipient |
+
+## Not yet deployed
+
+| Component | Tracked as |
+|---|---|
+| EVM destination registry on a public chain | B5.2 / B5.3 follow-up |
+| Paid relayer delivery | Same |
+| Mainnet anything | Not before an external audit |

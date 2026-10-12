@@ -1,0 +1,168 @@
+---
+title: "Quickstart"
+description: "Build the CLI, scan a vulnerable and a patched Orchard circuit, verify both passports, and watch the fail-safe block an expired one. About ten minutes."
+icon: "rocket"
+---
+
+This quickstart runs the **deterministic path**: no blockchain, no network (with `--offline`), and no model. You'll see the three outcomes that matter: a passport that **passes**, one that **blocks on a finding**, and one that **blocks on silence**.
+
+<Info>
+**Prerequisites:** Git and a stable Rust toolchain (`rustup`, `cargo`). That's all for this page. For the full stack (Solana, EVM, UI), see [Installation](/get-started/installation).
+</Info>
+
+<Steps>
+  <Step title="Clone and build">
+    ```bash
+    git clone https://github.com/Nailer/halflife && cd halflife
+    cargo build --release -p halflife-cli
+    ```
+
+    This produces the `halflife` binary at `./target/release/halflife`.
+
+    <Accordion title="In plain terms" icon="lightbulb">
+    You're downloading the project and compiling the command-line tool. The first build takes a few minutes because Rust compiles every dependency once.
+    </Accordion>
+  </Step>
+
+  <Step title="Create an issuer key">
+    ```bash
+    ./target/release/halflife keygen --out issuer.json
+    ```
+
+    ```text
+    issuer  7x3k...Qm9P
+    written issuer.json
+    ```
+
+    The file is a **Solana keypair file**: a JSON array of 64 bytes, `secret ‖ public`. The issuer's identity is the base58 public key, which is also a valid Solana address. `keygen` refuses to overwrite an existing file.
+
+    <Accordion title="In plain terms" icon="lightbulb">
+    Passports are signed, like a signature on a cheque. This creates your personal signing key. The long string it prints is your public name, which anyone can use to check that a passport really came from you. Keep `issuer.json` private. It's already listed in `.gitignore`.
+    </Accordion>
+  </Step>
+
+  <Step title="Scan the vulnerable circuit">
+    ```bash
+    ./target/release/halflife scan fixtures/orchard-vulnerable --offline --out out/vulnerable
+    ```
+
+    ```text
+    closure   ... packages (... from registry)
+    advisory  snapshot:fixtures/osv-snapshot.json
+    circuit   <64 hex chars>
+    evidence  <64 hex chars>
+    issuer    <base58>
+    capability C1  seq 1  disclosure Embargoed
+    findings  halo2_gadgets@0.4.0  GHSA-ww9q-8r59-xv46
+    status    Invalid
+    written   out/vulnerable
+    ```
+
+    The fixture pins `halo2_gadgets 0.4.0`, which is below the 0.5.0 fix for **GHSA-ww9q-8r59-xv46**. The closure carries an advisory, so the derived status is `INVALID`.
+
+    <Accordion title="In plain terms" icon="lightbulb">
+    The tool read the project's list of libraries, looked each one up in a saved copy of a public vulnerability database, found one with a known problem, and wrote a signed passport that says "problem found".
+    </Accordion>
+  </Step>
+
+  <Step title="Scan the patched circuit">
+    ```bash
+    ./target/release/halflife scan fixtures/orchard-patched --offline --out out/patched
+    ```
+
+    The same circuit moves to `halo2_gadgets 0.5.0`. No advisory matches, so the status is `VALID`.
+  </Step>
+
+  <Step title="Verify like a consumer">
+    ```bash
+    ./target/release/halflife verify out/patched/passport.json --evidence out/patched/evidence.json
+    echo "exit: $?"   # 0 → proceed
+
+    ./target/release/halflife verify out/vulnerable/passport.json --evidence out/vulnerable/evidence.json
+    echo "exit: $?"   # 2 → block
+    ```
+
+    `verify` checks four things in order: the `issuer_id` matches the key inside the signed core, the ed25519 signature verifies over the domain-separated preimage, the supplied evidence reproduces both `evidence_hash` and `circuit_hash`, and the passport is within clock bounds. It then resolves the effective status against the current time and **exits 2** on anything other than `VALID`.
+
+    <Accordion title="In plain terms" icon="lightbulb">
+    This is what a careful program does before trusting a passport. It confirms the signature is genuine, confirms the passport matches the detailed report it summarises, and checks whether the passport currently says "go". Exit code 0 means "go" and 2 means "stop". Scripts and CI systems read those codes.
+    </Accordion>
+  </Step>
+
+  <Step title="Watch the fail-safe">
+    Pretend no update ever arrives. Evaluate the healthy passport one second after it expires:
+
+    ```bash
+    EXP=$(python3 -c "import json;print(json.load(open('out/patched/passport.json'))['core']['expires_at'])")
+    ./target/release/halflife verify out/patched/passport.json --at $((EXP + 1))
+    echo "exit: $?"   # 2 → STALE, block
+    ```
+
+    ```text
+    effective Stale
+    ```
+
+    Nothing was published and nothing changed. The passport simply aged out, and the consumer blocks.
+
+    <Accordion title="In plain terms" icon="lightbulb">
+    This is the most important thing Halflife does. A passport that said "safe" stops counting once its date passes. If someone tried to keep a system running by stopping updates from getting through, the system would stop anyway.
+    </Accordion>
+  </Step>
+
+  <Step title="Try to forge one">
+    ```bash
+    python3 -c "
+    import json
+    p=json.load(open('out/vulnerable/passport.json'))
+    p['core']['status']='VALID'; p['core']['advisory_count']=0
+    json.dump(p,open('out/forged.json','w'))"
+    ./target/release/halflife verify out/forged.json
+    ```
+
+    ```text
+    Error: signature does not verify
+    ```
+
+    The signature covers every byte of the core, so flipping the status invalidates it.
+  </Step>
+</Steps>
+
+<Check>
+You've now seen all three behaviours: **accept**, **block on finding**, and **block on silence**. The whole sequence is also scripted as `./scripts/demo.sh`.
+</Check>
+
+## See the blast radius
+
+Register the fleet into a local registry, then ask what a dependency version reaches:
+
+```bash
+for f in fixtures/fleet/*/ fixtures/orchard-vulnerable fixtures/orchard-patched; do
+  ./target/release/halflife register "${f%/}" --offline --disclosure public
+done
+
+./target/release/halflife impact halo2_gadgets@0.4.0 --operator   # affected circuits listed, exit 2
+./target/release/halflife impact halo2_gadgets@0.5.0 --operator   # AFFECTED none, exit 0
+```
+
+Both versions **reach** circuits, but only one **affects** them. Anyone can build an alarm. Showing what a healthy dependency *doesn't* touch is what proves the tool discriminates.
+
+<Accordion title="In plain terms" icon="lightbulb">
+"Impact" answers the question "if this library is bad, who is hurt?" The bad version lights up the projects that use it. The fixed version, used by just as many projects, lights up nothing. A good alarm shouldn't go off when there's no fire.
+</Accordion>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Scan your own project" icon="folder-search" href="/guides/scan-a-project">
+    Write a `halflife.toml` and scan a real codebase.
+  </Card>
+  <Card title="Gate pull requests" icon="git-pull-request" href="/guides/ci-github-action">
+    Add the reusable Action.
+  </Card>
+  <Card title="Run the full verification" icon="list-checks" href="/guides/verify-everything">
+    Thirty-nine checks across every layer.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/reference/cli">
+    Every command, flag, default, and exit code.
+  </Card>
+</CardGroup>

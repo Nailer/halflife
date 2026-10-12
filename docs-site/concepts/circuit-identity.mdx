@@ -1,0 +1,85 @@
+---
+title: "Circuit identity"
+description: "How circuit_hash and evidence_hash are derived, what they bind a passport to, and the limits stated plainly."
+icon: "fingerprint"
+---
+
+Two 32-byte digests tie a passport to the thing it describes:
+
+| Digest | Binds the passport to | Algorithm |
+|---|---|---|
+| `circuit_hash` | **Which build** (declared source plus resolved closure) | SHA-256 over a domain-separated, NUL-delimited preimage |
+| `evidence_hash` | **Which evidence** justified the status | SHA-256 over the canonical JSON of the evidence document |
+
+<Accordion title="In plain terms" icon="lightbulb">
+These are two fingerprints. One identifies *which version of the software* the label is about. The other identifies *which detailed report* the label summarises. Change either and the fingerprint changes completely, so a label can't be quietly moved to a different project or a different report.
+</Accordion>
+
+## `circuit_hash`: v1 derivation
+
+```text
+SHA-256( "halflife-circuit-id-v1\0"
+         || repository \0 || commit \0 || proof_system \0
+         || for each dependency sorted by (name, version): name "@" version \0 )
+```
+
+The inputs come from two files in the target directory:
+
+```toml halflife.toml
+[subject]
+name = "orchard-action-circuit"
+repository = "https://github.com/zcash/orchard"
+commit = "0d1b4b0a84e6e0ba0e0e4e0f8f2f6fbb1c5a7e31"
+proof_system = "halo2"
+```
+
+plus every `[[package]]` in `Cargo.lock`, including path and workspace members.
+
+`subject.name` is **not** an input. Renaming a circuit doesn't change its identity.
+
+### What it is, and what it isn't
+
+<Warning>
+`circuit_hash` v1 is a **build-identity fingerprint**, not a binding to the constraint system or the verifying key (limit **L1**).
+</Warning>
+
+- It binds to *how the circuit was built*, meaning its declared source and resolved dependency closure, not to the constraint system that build produces.
+- Two builds with an identical commit and closure collide **by design**. That's what makes the identity stable.
+- A source change that moves no dependency version is **invisible** to it.
+- Moving even one dependency version **does** change it (pinned by the test `moving_one_dependency_version_changes_circuit_identity`).
+
+Binding to the **verifying key** is the v2 intent. It isn't claimed here, because a fingerprint that sounds stronger than it is would be the exact failure this project exists to make visible.
+
+<Accordion title="In plain terms" icon="lightbulb">
+Today's fingerprint describes the *ingredients list and recipe source*, not the *finished dish*. If someone changed the recipe text without changing any ingredient versions, the fingerprint wouldn't notice. The project says so openly, and a stronger fingerprint tied to the circuit's actual mathematical key is planned.
+</Accordion>
+
+## `evidence_hash`: canonical JSON
+
+`evidence_hash = SHA-256(canonical JSON of Evidence)`, where **canonical** means:
+
+1. Struct fields in **declared order**: `evidence_version`, `subject`, `capability`, `disclosure`, `methods`, `advisory_source`, `dependencies`.
+2. `dependencies` sorted by `(name, version, checksum, advisories)`, using the derived `Ord` with name and version leading.
+3. Each dependency's `advisories` list **sorted and de-duplicated**.
+4. `methods` sorted by `id`.
+
+Discovery order never affects the digest (test `evidence_hash_is_order_independent`).
+
+## Binding verification
+
+A verifier given both artifacts **must** confirm that the evidence reproduces **both** `evidence_hash` and `circuit_hash`. That way a passport can't be decoupled from the evidence that justified it.
+
+```bash
+halflife verify out/passport.json --evidence out/evidence.json
+```
+
+```text
+signature ok (3Ffc…uQ8a)
+evidence  binds (412 deps)
+```
+
+On mismatch, `verify` fails with `evidence_hash does not match the supplied evidence` or `circuit_hash does not match the supplied evidence`.
+
+## Deployment drift
+
+Until artifact identity (roadmap item **P4B**) exists, a passport describes **a registered source and build**, not necessarily **what is running** (limit **L6**). Closing that gap needs reproducible builds (B8.3) and binding to the deployed artifact or verifying key.

@@ -1,0 +1,90 @@
+---
+title: "Issuers"
+description: "Who signs passports, how issuer keys are registered with proof of possession, and how forward-only revocation and rotation work."
+icon: "key-round"
+---
+
+An **issuer** is any party that signs passports: an auditor, a security team, a CI system, or Halflife itself. An issuer is identified by an **ed25519 public key**, which is also a **Solana address**.
+
+<Accordion title="In plain terms" icon="lightbulb">
+An issuer is whoever vouches for a check, like the inspector who signs an inspection certificate. Their identity is a public key, a long string that anyone can use to confirm a signature really is theirs.
+</Accordion>
+
+## Keys
+
+The key file format is the **Solana keypair file**: a JSON array of 64 bytes, `secret(32) ‖ public(32)`. Nothing about it is specific to Halflife.
+
+```bash
+halflife keygen --out issuer.json      # or: solana-keygen new -o issuer.json
+```
+
+When a key is loaded, Halflife checks that the public half matches the secret half. A truncated or hand-edited file is rejected with `keypair is inconsistent: public half does not match the secret half`. Signing with such a file would produce passports nobody can verify against the advertised issuer ID.
+
+## On-chain registration requires proof of possession
+
+To publish on Solana, an issuer must first be registered in the passport program. Registration requires the issuer's **own ed25519 signature** over:
+
+```text
+"halflife-register-issuer-v1" || authority_pubkey
+```
+
+The signature is verified through the Ed25519 sigverify precompile, in instruction 0 of the same transaction.
+
+- **Why:** an issuer's public key is public. Without proof of possession, anyone could register someone else's key first, become its `authority`, and revoke it. That would squat an identity they have no claim to and lock the real issuer out. This hole existed and was fixed. See [Self-review findings](/security/self-review-findings).
+- **Why bind the authority:** a signature produced for one registrant is useless to another, so the proof is **non-transferable**. Replaying it fails with `SignedMessageMismatch`.
+
+<Accordion title="In plain terms" icon="lightbulb">
+To register as a checker, you have to prove you hold the secret key, not just that you know the public one. The proof also names *who* is registering, so nobody can copy your proof and use it to register themselves in your place.
+</Accordion>
+
+The registration creates an `IssuerRecord` PDA at seeds `["issuer", key]`:
+
+| Field | Meaning |
+|---|---|
+| `key` | The issuer's ed25519 public key |
+| `authority` | The Solana account allowed to revoke this issuer |
+| `registered_at` | Unix seconds at registration |
+| `revoked_at` | `0` while active |
+
+## Revocation is forward-only
+
+Passports signed before `revoked_at` stay **cryptographically verifiable**, because history shouldn't become unreadable. They stop being **acceptable** from the moment of revocation.
+
+```rust
+pub fn accepts(&self, issued_at: i64, now: i64) -> bool {
+    if issued_at < self.registered_at {
+        return false;
+    }
+    match self.revoked_at {
+        Some(r) => now < r && issued_at < r,
+        None => true,
+    }
+}
+```
+
+| Case | Accepted? |
+|---|---|
+| Issued before registration | No |
+| Issued and read before revocation | Yes |
+| Issued before revocation, read after | **No** |
+| Issued after revocation | Never |
+
+On Solana, a revoked issuer can't publish (`IssuerRevoked`), revoking twice fails (`AlreadyRevoked`), and a passport whose `issued_at` predates registration is refused (`IssuedBeforeRegistration`).
+
+<Accordion title="In plain terms" icon="lightbulb">
+If a checker's key is withdrawn, their old certificates can still be *read* and confirmed as genuine, so the history is preserved. They just stop *counting* from that moment on. Nothing they sign afterwards ever counts.
+</Accordion>
+
+## Rotation
+
+`IssuerRecord` in `halflife-core` carries `rotated_from: Option<[u8; 32]>`, so when a key is replaced the audit trail records its predecessor. The on-chain program doesn't currently expose a rotate instruction. Rotation there means registering the new key and revoking the old one.
+
+## Multiple issuers
+
+The core binds **exactly one issuer**. Several issuers attesting to the same circuit produce several passports over the same `circuit_hash`, stored in distinct PDAs (`["passport", circuit_hash, issuer]`). A consumer that requires *n*-of-*m* checks that many accounts.
+
+v1 introduces no aggregate signature scheme. The consumer's loop is cheap, and the trust set stays explicit and inspectable. A passport from a different issuer **never supersedes** another. The two coexist.
+
+## Key compromise
+
+A fail-safe design means a stolen issuer key can **grief at protocol scale**: an attacker can publish `INVALID` and halt every consumer that trusts that issuer (limit **L5**). That risk is bounded by consumer quorum policies, not removed. Threshold signing (B8.2) and a key-compromise drill (B8.4) are on the [roadmap](/resources/roadmap).

@@ -1,0 +1,120 @@
+---
+title: "Installation"
+description: "Toolchains required for each layer of Halflife, why there are two Rust workspaces, and how to confirm your environment."
+icon: "download"
+---
+
+Halflife spans four runtimes: host Rust, Solana SBF, the EVM, and the browser. You only need the toolchains for the layers you intend to touch.
+
+| Layer | You need it for | Toolchain |
+|---|---|---|
+| CLI, registry, projection | Scanning, verifying, impact, export | Rust stable (edition 2021, rustc ≥ 1.85 for host deps) |
+| Independent Node conformance | `packages/passport-ts` | Node.js 22 (no npm dependencies) |
+| Solana programs | `solana/`, the benchmark, fire drills | Anchor CLI, Solana CLI, SBF toolchain (rustc/cargo 1.84) |
+| EVM destination | `evm/`, cross-chain demo | Foundry (`forge`, `anvil`) |
+| Control room | `apps/control-room` | Node.js 22 + npm (React 18, Vite 6, TypeScript 5) |
+| Helper scripts | Fleet and snapshot builders, verification | Python 3, `curl` |
+
+<Accordion title="In plain terms" icon="lightbulb">
+Different parts of the project are written in different languages for different machines. To scan a project you only need Rust. To run the blockchain parts or the dashboard, you need the extra tools listed above.
+</Accordion>
+
+## Install by layer
+
+<Tabs>
+  <Tab title="Rust (CLI)">
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    rustup default stable
+    cargo build --release --locked -p halflife-cli
+    ./target/release/halflife --version
+    ```
+    The host workspace (`Cargo.toml` at the repo root) contains seven crates: `halflife-core`, `halflife-lineage`, `halflife-registry`, `halflife-projection`, `halflife-cli`, `halflife-bench`, and `halflife-exercise`. SQLite is compiled in via `rusqlite`'s `bundled` feature, so there's no system database to install.
+  </Tab>
+  <Tab title="Node (conformance)">
+    ```bash
+    node --version   # v22.x
+    node packages/passport-ts/verify-vectors.mjs fixtures/vectors.json
+    ```
+    The Node implementation has **zero dependencies**. Ed25519 comes from Node's built-in `crypto`, so a pass means the specification is reproducible, not just that two copies of one library agree.
+  </Tab>
+  <Tab title="Solana (Anchor)">
+    ```bash
+    # Solana CLI (Agave)
+    sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+    # Anchor via avm
+    cargo install --git https://github.com/coral-xyz/anchor avm --locked
+    avm install latest && avm use latest
+
+    cd solana && anchor build
+    ```
+    `anchor build` produces `solana/target/deploy/halflife_passport.so` and `halflife_consumer.so`, which the benchmark (`halflife-bench`) loads into LiteSVM.
+  </Tab>
+  <Tab title="EVM (Foundry)">
+    ```bash
+    curl -L https://foundry.paradigm.xyz | bash && foundryup
+    cd evm
+    forge install foundry-rs/forge-std --no-git
+    forge test -vv
+    ```
+  </Tab>
+  <Tab title="Control room (UI)">
+    ```bash
+    cd apps/control-room
+    npm install
+    npm run dev       # http://localhost:5173
+    npm run build     # tsc -b && vite build → dist/
+    ```
+  </Tab>
+</Tabs>
+
+## Why there are two Rust workspaces
+
+<Note>
+`solana/` is a **separate Cargo workspace** with its own `Cargo.lock`, on purpose.
+</Note>
+
+Solana's SBF toolchain pins **rustc/cargo 1.84**. The host crates (`rusqlite`, `ureq`, `clap`) pull dependencies that need **edition 2024 / rustc 1.85+**. A shared lockfile would force one side onto versions the other can't build. Two workspaces and two lockfiles avoid the conflict.
+
+The Solana lockfile carries deliberate downgrades to stay within the SBF toolchain's reach:
+
+| Crate | Pinned | Reason |
+|---|---|---|
+| `proc-macro-crate` | 3.2.0 | 3.5.0 pulls `toml_edit` → `toml_datetime` 1.x, which needs edition 2024 |
+| `zeroize` | 1.8.1 | 1.9.0 needs edition 2024 |
+| `indexmap` | 2.7.1 | 2.14.2 needs edition 2024 |
+| `unicode-segmentation` | 1.12.0 | 1.13.3 requires rustc 1.85 |
+
+<Warning>
+Don't run `cargo update` inside `solana/` without rebuilding. `anchor build` is the check.
+</Warning>
+
+<Accordion title="In plain terms" icon="lightbulb">
+The blockchain compiler is pinned to an older version of Rust, while the command-line tool uses newer libraries that need a newer Rust. Keeping them as two separate projects means each can use the versions it needs without breaking the other.
+</Accordion>
+
+## Confirm your environment
+
+Run the full verification pass. It skips any layer whose toolchain is missing rather than failing:
+
+```bash
+./scripts/verify-all.sh
+```
+
+```text
+39 passed   0 failed   0 skipped
+```
+
+Skips are labelled with the command that would enable them, for example `Solana programs not built — run: cd solana && anchor build`. See [Verify everything](/guides/verify-everything).
+
+## Files that must never be committed
+
+`.gitignore` already excludes these. Keep it that way.
+
+| Path | Why |
+|---|---|
+| `issuer.json` | Your issuer's secret key |
+| `solana/deploy-keypair.json` | Program deploy and upgrade authority |
+| `evm/.deployer` | EVM deployer key |
+| `halflife.db` | Local registry; may contain embargoed findings |
+| `apps/control-room/.env.local` | Local environment configuration |

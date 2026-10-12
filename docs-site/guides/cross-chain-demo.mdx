@@ -1,0 +1,68 @@
+---
+title: "Cross-chain demo"
+description: "Drive an EVM consumer to a decision from the exact 125 bytes stored on Solana devnet, with a local chain and a stand-in mailbox, labelled as such."
+icon: "arrow-left-right"
+---
+
+`./scripts/cross-chain.sh` runs the whole path: a passport is **read back from the deployed Solana registry on devnet**, and its canonical 125 bytes are delivered **unchanged** to an EVM destination, where a consumer contract reaches a decision.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This script takes a real label from the Solana test network, starts a pretend Ethereum-style chain on your computer, delivers the label there, and shows that a contract on that chain reaches the same go/stop decision. The pretend chain and the delivery service are local stand-ins, and the script says so.
+</Accordion>
+
+## Requirements
+
+`cargo build --release` (for `halflife-exercise`), Foundry (`forge`, `cast`, `anvil`), Python 3, `curl`, and network access to Solana devnet.
+
+## Run
+
+```bash
+./scripts/cross-chain.sh            # use the most recent passport on devnet
+./scripts/cross-chain.sh --fresh    # publish a new one on devnet first (needs a funded payer)
+./scripts/cross-chain.sh <circuit>  # a specific circuit hash
+```
+
+## What happens
+
+<Steps>
+  <Step title="Read from Solana devnet">
+    `halflife-exercise fetch` reads the passport account and rebuilds its canonical 125 bytes.
+  </Step>
+  <Step title="Start a local EVM chain">
+    Uses `anvil` on `:8545`, or reuses a chain already running at `EVM_RPC`.
+  </Step>
+  <Step title="Deploy the destination">
+    `LocalAggregationIsm`, `MockMailbox`, `HalflifeDestinationRegistry(mailbox, 1399811149, sender, ism)`, and `HalflifeConsumer(registry, circuit, issuer, 1)`, where `sender` is the passport program ID base58-decoded to bytes32.
+  </Step>
+  <Step title="Absence is not permission">
+    Before delivery, `wouldProceed()` must be `false`. The script exits 1 if the consumer would proceed with no passport.
+  </Step>
+  <Step title="Deliver the Solana bytes">
+    `MockMailbox.deliver(registry, domain, sender, core)` runs the recipient's ISM `verify`, then calls `handle`.
+  </Step>
+  <Step title="The consumer decides">
+    `statusNow` resolves VALID / STALE / INVALID / MISSING, and the consumer **PROCEEDS** or **BLOCKS**.
+  </Step>
+</Steps>
+
+## What is real, and what is local
+
+| Real | Local |
+|---|---|
+| The off-chain signature | The EVM chain (`anvil`) |
+| The Solana verification and stored account | The mailbox (`MockMailbox`) |
+| The 125 bytes | The ISM (`LocalAggregationIsm`) |
+| Both EVM contracts and the decision | |
+
+The mock mailbox performs the one check the real mailbox performs before calling a recipient: it asks which ISM the recipient requires and runs that module's `verify`. So the recipient-side path is exercised exactly as in production. It does **not** stand in for the validator set, the relayer, or real attestation aggregation. It exercises the delivery **path**, not the **security** of delivery. A faucet-funded testnet swaps the RPC and the mailbox address and changes nothing else.
+
+## Environment variables
+
+| Variable | Default |
+|---|---|
+| `EVM_RPC` | `http://127.0.0.1:8545` |
+| `EVM_KEY` | anvil's first well-known account key. **Local chains only, never funded.** |
+
+<Note>
+A recently published devnet passport may resolve as `STALE` here if its TTL has already passed. Drill passports use a 45 s TTL. That's the fail-safe working, not a bug. Use `--fresh` to see `VALID → PROCEEDS`.
+</Note>

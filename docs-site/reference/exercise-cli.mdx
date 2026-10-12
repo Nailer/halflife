@@ -1,0 +1,68 @@
+---
+title: "halflife-exercise CLI"
+description: "Controlled threat-scenario execution and devnet operations: run, verify, publish, init-config, set-route, dispatch, verify-dispatch, fetch."
+icon: "flame"
+---
+
+```text
+halflife-exercise <COMMAND>
+
+  run              Run a scenario end to end against the cluster
+  verify           Re-check a recorded exercise against the cluster
+  publish          Publish a passport for a registered circuit
+  init-config      Create the registry config (caller becomes admin)
+  set-route        Point a destination domain at a Hyperlane mailbox and recipient
+  dispatch         Dispatch a passport through the real Hyperlane mailbox
+  verify-dispatch  Re-check a Hyperlane dispatch record against the cluster
+  fetch            Print the canonical 125 bytes of a passport as it exists on chain
+```
+
+**Common defaults:** `--payer solana/deploy-keypair.json` and `--rpc https://api.devnet.solana.com`. The payer keypair also serves as the **issuer** key in these operations.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This second tool talks to the real Solana test network. It runs the emergency drills, publishes labels, configures message routes, sends messages through Hyperlane, and re-checks recorded results against the network.
+</Accordion>
+
+## `run <SCENARIO>`
+
+<ParamField path="SCENARIO" type="dependency-compromise | relayer-censorship" required />
+<ParamField path="--ttl" type="i64" default="45">Passport lifetime. The censorship scenario waits this long for expiry.</ParamField>
+<ParamField path="--out" type="path" default="exercises" />
+
+## `verify <RECORD>`
+
+Re-fetches every recorded `SOLANA_TRANSACTION` signature from the cluster.
+
+## `publish <CIRCUIT>`
+
+<ParamField path="CIRCUIT" type="hex (32 bytes)" required />
+<ParamField path="--status" type="valid | invalid" default="valid">Anything other than `invalid` is treated as valid.</ParamField>
+<ParamField path="--ttl" type="i64" default="86400" />
+
+Registers the issuer if needed, reads the next sequence from chain, signs, and publishes. Prints `published <hash> seq N <status> slot <slot> <sig>`.
+
+## `init-config`
+
+Creates the `Config` PDA, and **the caller becomes admin**. If config exists, it prints the current admin and exits successfully.
+
+## `set-route`
+
+<ParamField path="--domain" type="u32" default="84532">Destination Hyperlane domain (Base Sepolia).</ParamField>
+<ParamField path="--recipient" type="hex bytes32" default="0xeeee…eeee">Destination registry. The default is an obviously synthetic placeholder.</ParamField>
+<ParamField path="--mailbox" type="base58" default="5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54">Must be allowlisted in the program.</ParamField>
+
+## `dispatch [CIRCUIT]`
+
+<ParamField path="CIRCUIT" type="hex">Defaults to the newest exercise record's circuit.</ParamField>
+<ParamField path="--domain" type="u32" default="84532" />
+<ParamField path="--out" type="path" default="exercises" />
+
+Dispatches through the real mailbox, reads back what the mailbox stored, and writes `hyperlane-dispatch-<unix>.json`.
+
+## `verify-dispatch <RECORD>`
+
+Re-checks independently of the recording: the transaction succeeded, and the message account **owned by Hyperlane's mailbox** carries the passport program as sender and the recorded body.
+
+## `fetch [CIRCUIT]`
+
+Prints the 125-byte core as hex on stdout (metadata on stderr). Used by `cross-chain.sh` to drive the EVM side with bytes that genuinely came from the deployed registry.

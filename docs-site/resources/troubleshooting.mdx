@@ -1,0 +1,110 @@
+---
+title: "Troubleshooting"
+description: "Fixes for the problems people actually hit: builds, keys, scans, verification, Solana, EVM, and the control room."
+icon: "wrench"
+---
+
+<Accordion title="In plain terms" icon="lightbulb">
+If something isn't working, find the symptom below and follow the fix.
+</Accordion>
+
+## Build
+
+<AccordionGroup>
+  <Accordion title="Host build fails with edition 2024 / rustc version errors">
+    Update to the latest stable Rust (`rustup update stable`). The host crates need rustc ≥ 1.85.
+  </Accordion>
+  <Accordion title="anchor build fails after cargo update in solana/">
+    The Solana workspace pins downgrades (`proc-macro-crate 3.2.0`, `zeroize 1.8.1`, `indexmap 2.7.1`, `unicode-segmentation 1.12.0`) to stay within SBF rustc 1.84. Restore `solana/Cargo.lock` from git.
+  </Accordion>
+  <Accordion title="halflife-bench fails: missing .so">
+    Run `cd solana && anchor build` first. CI excludes the bench for this reason.
+  </Accordion>
+</AccordionGroup>
+
+## Keys
+
+<AccordionGroup>
+  <Accordion title="already exists — refusing to overwrite an issuer key">
+    `keygen` never overwrites. Choose another `--out`, or delete the old key deliberately.
+  </Accordion>
+  <Accordion title="keypair is inconsistent">
+    The public half doesn't match the secret half. Regenerate the key, because the file is corrupted or was hand-edited.
+  </Accordion>
+</AccordionGroup>
+
+## Scanning
+
+<AccordionGroup>
+  <Accordion title="reading …/halflife.toml: No such file">
+    Every target needs a `halflife.toml` with `[subject]` name, repository, commit, and proof_system. The GitHub Action generates one automatically.
+  </Accordion>
+  <Accordion title="OSV batch query failed">
+    A network or OSV outage. Retry, or use `--offline --snapshot …`.
+  </Accordion>
+  <Accordion title="--offline can't find fixtures/osv-snapshot.json">
+    The default snapshot path is relative to the **current directory**. Run from the repo root or pass `--snapshot` with an absolute path.
+  </Accordion>
+  <Accordion title="My scan is INVALID but cargo audit is clean">
+    Expected for the Zcash crates (RustSec has no entry). For other crates, check the advisory ID in `findings`. It may be a GHSA-only or "unmaintained" notice.
+  </Accordion>
+</AccordionGroup>
+
+## Verification
+
+<AccordionGroup>
+  <Accordion title="signature does not verify">
+    The core was modified, or it was signed with a different key. Re-issue with the correct issuer.
+  </Accordion>
+  <Accordion title="u64 must be a JSON string, not a number">
+    Some tool rewrote `sequence`, `issued_at`, or `expires_at` as numbers. Keep them as strings.
+  </Accordion>
+  <Accordion title="effective Stale (exit 2) right after scanning">
+    Check your clock and `--ttl`. A small TTL expires quickly, which is expected behaviour.
+  </Accordion>
+</AccordionGroup>
+
+## Solana
+
+<AccordionGroup>
+  <Accordion title="MissingSignatureInstruction on publish">
+    The Ed25519 verify instruction must be at **index 0** of the transaction, with exactly one signature.
+  </Accordion>
+  <Accordion title="SequenceNotIncreasing">
+    A passport with an equal or higher sequence is already stored. Use `halflife-exercise publish` (which reads the next sequence) or increment `--sequence`.
+  </Accordion>
+  <Accordion title="IssuedBeforeRegistration">
+    The passport was signed before the issuer was registered on-chain. Re-sign it.
+  </Accordion>
+  <Accordion title="Live read says 'not found' for fleet circuits">
+    Those circuits are registered locally but not published on-chain. Run `halflife-exercise publish <circuit_hash>`.
+  </Accordion>
+</AccordionGroup>
+
+## EVM
+
+<AccordionGroup>
+  <Accordion title="IsmRequired / NullIsmRefused on deploy">
+    Working as designed. Supply a real, non-NULL ISM (aggregation recommended).
+  </Accordion>
+  <Accordion title="UnexpectedSender">
+    `originSender` must be the passport program ID **base58-decoded** to bytes32, not hex of the string.
+  </Accordion>
+  <Accordion title="Cross-chain demo resolves STALE">
+    The fetched devnet passport has passed its TTL. Run with `--fresh`.
+  </Accordion>
+</AccordionGroup>
+
+## Control room
+
+<AccordionGroup>
+  <Accordion title="Blank page or a 'state.json' fetch error">
+    Run `halflife export` (and `--operator`) into `apps/control-room/public/`.
+  </Accordion>
+  <Accordion title="Deployed site returns 403 when signed out">
+    Vercel Deployment Protection is on. Disable it for the project. `deploy-ui.sh` checks for this.
+  </Accordion>
+  <Accordion title="Theme doesn't persist">
+    Your browser blocks `localStorage` (private mode). The page still works.
+  </Accordion>
+</AccordionGroup>

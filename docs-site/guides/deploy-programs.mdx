@@ -1,0 +1,66 @@
+---
+title: "Deploy the programs"
+description: "Build and deploy the passport and consumer programs to Solana, initialise config in the same step, and the known gaps in today's deployment authority."
+icon: "upload"
+---
+
+<Steps>
+  <Step title="Build">
+    ```bash
+    cd solana && anchor build
+    ```
+    This produces `target/deploy/halflife_passport.so`, `halflife_consumer.so`, and their program keypairs.
+  </Step>
+  <Step title="Deploy">
+    ```bash
+    solana program deploy solana/target/deploy/halflife_passport.so \
+      --program-id solana/target/deploy/halflife_passport-keypair.json \
+      --keypair solana/deploy-keypair.json --url devnet
+
+    solana program deploy solana/target/deploy/halflife_consumer.so \
+      --program-id solana/target/deploy/halflife_consumer-keypair.json \
+      --keypair solana/deploy-keypair.json --url devnet
+    ```
+  </Step>
+  <Step title="Initialise config immediately">
+    ```bash
+    ./target/release/halflife-exercise init-config --payer solana/deploy-keypair.json
+    ```
+    <Warning>
+    `init_config` is **first-caller-wins**. Whoever calls it first after deployment becomes admin. Run it in the same step as deployment.
+    </Warning>
+  </Step>
+  <Step title="Confirm">
+    ```bash
+    solana program show CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2 --url devnet
+    ```
+  </Step>
+</Steps>
+
+<Accordion title="In plain terms" icon="lightbulb">
+Compile the blockchain programs, upload them to Solana, and immediately claim the admin role so nobody else can. The admin role can only set where messages are sent. It can't change any passport.
+</Accordion>
+
+## Deploying under your own program IDs
+
+If you deploy fresh programs, update **every** place the IDs are pinned:
+
+| Location | Constant |
+|---|---|
+| `solana/programs/halflife-passport/src/lib.rs` | `declare_id!` |
+| `solana/programs/halflife-consumer/src/lib.rs` | `declare_id!` |
+| `solana/Anchor.toml` | `[programs.localnet]` |
+| `crates/halflife-exercise/src/main.rs` | `PASSPORT_ID`, `CONSUMER_ID` |
+| `crates/halflife-cli/src/main.rs` | `deployments` block in `export` |
+| `apps/control-room/src/LiveRead.tsx` | `PASSPORT_PROGRAM` |
+| `scripts/verify-all.sh`, `scripts/cross-chain.sh` | Hard-coded addresses |
+
+## Known gaps, stated
+
+| Gap | Risk | Planned fix |
+|---|---|---|
+| **Single-key upgrade authority** (`Azh9zR13hCQiDYuSWZxJNmxarLzdr7uZrfohtUwMVPsh`) | Whoever holds it can replace the program a consumer trusts, which is exactly the deployment-drift problem artifact binding exists to detect | Squads multisig, then threshold control (B8.2) |
+| **Admin = upgrade authority** | One key controls both | Separate the roles |
+| **`init_config` first-caller-wins** | A race after deployment | Bind initialisation to the program's upgrade authority via ProgramData (not done because the local harness loads programs without ProgramData) |
+| **Builds aren't reproducible byte-for-byte** | "The deployed program matches this source" has to be taken on trust | Reproducible builds (B8.3) |
+| **The mailbox allowlist is code** | Adding a cluster needs a program upgrade | That's intentional, and it's also a cost |

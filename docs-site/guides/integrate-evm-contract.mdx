@@ -1,0 +1,100 @@
+---
+title: "Integrate an EVM contract"
+description: "Gate a Solidity contract on a passport delivered from Solana over Hyperlane, using the destination registry and the reference consumer pattern."
+icon: "hexagon"
+---
+
+<Warning>
+**Status:** the destination contracts are complete and tested, but **no destination registry is deployed on a public chain**. Delivery over a real relayer isn't yet demonstrated. You can run the full path locally with [the cross-chain demo](/guides/cross-chain-demo).
+</Warning>
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the same idea as the Solana integration, but for Ethereum-style blockchains. A receiving contract stores the labels sent from Solana, and your contract asks it "is this circuit's label OK right now?" before doing anything important.
+</Accordion>
+
+## 1. Deploy (or locate) the destination registry
+
+```solidity
+new HalflifeDestinationRegistry(
+    mailbox,        // Hyperlane mailbox on this chain
+    originDomain,   // Hyperlane domain of the Solana origin
+    originSender,   // the passport program ID, base58-DECODED to bytes32
+    ism             // a non-zero, non-NULL ISM (aggregation recommended)
+);
+```
+
+`originSender` is the 32 raw bytes of the Solana program address, **base58-decoded, not hex-encoded**:
+
+```bash
+python3 -c "
+A='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+n=0
+for ch in 'CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2': n=n*58+A.index(ch)
+print('0x'+n.to_bytes(32,'big').hex())"
+```
+
+The constructor reverts with `IsmRequired()` for `address(0)` and `NullIsmRefused()` for a `Types.NULL` module. See [ISM configuration](/security/ism-configuration) for the recommended 2-of-2 aggregation.
+
+## 2. Gate your contract
+
+<Tabs>
+  <Tab title="Inherit the reference pattern">
+    ```solidity MyProtocol.sol
+    // SPDX-License-Identifier: Apache-2.0
+    pragma solidity ^0.8.24;
+
+    import {HalflifeDestinationRegistry as Registry} from "halflife/HalflifeDestinationRegistry.sol";
+
+    contract MyProtocol {
+        Registry public immutable registry;
+        bytes32  public immutable circuitHash;
+        bytes32  public immutable issuer;
+        uint8    public immutable minCapability;
+
+        error NoPassport();
+        error PassportStale();      // evidence aged out — NOT a finding
+        error PassportInvalid();    // an issuer reported a problem
+        error InsufficientCapability(uint8 have, uint8 need);
+
+        constructor(Registry r, bytes32 c, bytes32 i, uint8 m) {
+            registry = r; circuitHash = c; issuer = i; minCapability = m;
+        }
+
+        modifier onlyCurrentPassport() {
+            Registry.Passport memory p = registry.get(circuitHash, issuer);
+            if (!p.present) revert NoPassport();
+            if (p.capability < minCapability) revert InsufficientCapability(p.capability, minCapability);
+            Registry.Effective e = registry.statusNow(circuitHash, issuer);
+            if (e == Registry.Effective.Stale)   revert PassportStale();
+            if (e == Registry.Effective.Invalid) revert PassportInvalid();
+            if (e != Registry.Effective.Valid)   revert NoPassport();
+            _;
+        }
+
+        function verifyAndSettle(bytes calldata proof) external onlyCurrentPassport {
+            // … verify the proof and act
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="Use HalflifeConsumer directly">
+    Deploy `HalflifeConsumer(registry, circuitHash, issuer, minCapability)` and call `submitProof()` (which reverts unless current) or `wouldProceed()` (a view) from your contract.
+  </Tab>
+</Tabs>
+
+## 3. Map the status enum
+
+```solidity
+enum Effective { Missing, Valid, Stale, Invalid }   // 0, 1, 2, 3
+```
+
+| Value | Meaning | Your action |
+|---|---|---|
+| `0` Missing | Never delivered for this `(circuit, issuer)` | Block |
+| `1` Valid | Current | Proceed |
+| `2` Stale | Expired with no update | Block (not a finding) |
+| `3` Invalid | Issuer reported a problem | Block |
+
+## Trust model you inherit
+
+The destination **doesn't verify ed25519**. It trusts that `originSender` is the Solana registry (enforced by Hyperlane's PDA-signed dispatch) and that the ISM attests to what Solana said. **A destination chain inherits Solana's verification.** See [Trust boundaries](/security/trust-boundaries).

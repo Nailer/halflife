@@ -1,0 +1,43 @@
+---
+title: "halflife_consumer program"
+description: "The reference consumer: a program that refuses to proceed without a current passport."
+icon: "octagon-x"
+---
+
+**Program ID (devnet):** `BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW`
+
+This is the point of the whole system: not a dashboard that displays a status, but a third-party program that **won't do its work** when the cryptography it depends on has no current security evidence.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is an example program showing how a real project would use Halflife. It does a pretend task, but only after checking the label. If the label isn't OK, it refuses.
+</Accordion>
+
+## Instructions
+
+### `submit_proof(expected_circuit: [u8; 32], min_capability: u8)`
+
+Runs `check` and logs `passport current — proceeding` or `blocked: passport is not acceptable`.
+
+### `bench_check(expected_circuit, min_capability)`
+
+The check with nothing around it, for measurement. It ignores the result so the CU log reflects the check alone, including deserialization and dispatch.
+
+## Accounts (`SubmitProof`)
+
+| Account | Notes |
+|---|---|
+| `passport` | `Account<Passport>`, **read-only**, no write lock |
+| `caller` | `Signer` |
+
+## Errors
+
+| Code | Name | Message |
+|---|---|---|
+| 6000 | `WrongCircuit` | passport describes a different circuit than this program expects |
+| 6001 | `InsufficientCapability` | passport asserts a lower capability tier than this program requires |
+| 6002 | `PassportStale` | security evidence is no longer current; this is not a finding |
+| 6003 | `PassportInvalid` | an accepted issuer reported this circuit should no longer be trusted |
+
+## Cost
+
+**1,520 CU** for `bench_check`, measured with LiteSVM against the `anchor build` artifacts: `cargo run --release -p halflife-bench`.

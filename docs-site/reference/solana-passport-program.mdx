@@ -1,0 +1,137 @@
+---
+title: "halflife_passport program"
+description: "Instructions, accounts, PDAs, events, and errors of the on-chain passport registry."
+icon: "box"
+---
+
+**Program ID (devnet):** `CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2` · Anchor 0.32 · `overflow-checks = true`
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the official Solana program that stores issuers and passport labels. This page lists every action it supports, every record it keeps, and every error it can return.
+</Accordion>
+
+## Instructions
+
+### `register_issuer(key: [u8; 32])`
+
+Registers an issuer with **proof of possession**.
+
+| Account | Constraints |
+|---|---|
+| `issuer` | `init`, PDA `["issuer", key]`, payer = authority |
+| `authority` | `Signer`, `mut` |
+| `instructions` | Instructions sysvar |
+| `system_program` | |
+
+**Requires** instruction 0 to be an Ed25519 verify, by `key`, over `"halflife-register-issuer-v1" ‖ authority`. Emits `IssuerRegistered { key, at }`.
+
+### `init_config()`
+
+Creates `Config` at `["config"]`. **The caller becomes admin.** First-caller-wins, so call it in the same step as deployment. Emits `AdminChanged { previous: default, current }`.
+
+### `set_admin(new_admin: Pubkey)`
+
+Admin only (`NotAdmin`). Hands the admin role to another key, for example a multisig. Emits `AdminChanged`.
+
+### `revoke_issuer()`
+
+`has_one = authority`. Sets `revoked_at = now`. Forward-only. Fails with `AlreadyRevoked` if already revoked. Emits `IssuerRevoked`.
+
+### `publish(core: [u8; 125])`
+
+Permissionless. Verifies the issuer's off-chain signature.
+
+| Account | Constraints |
+|---|---|
+| `passport` | `init_if_needed`, PDA `["passport", core[1..33], core[33..65]]` |
+| `issuer` | PDA `["issuer", core[33..65]]` |
+| `payer` | `Signer`, `mut` |
+| `instructions` | Instructions sysvar |
+| `system_program` | |
+
+**Requires** instruction 0 to be an Ed25519 verify, by the core's issuer, over `"halflife-passport-v1" ‖ core`. Emits `PassportPublished { circuit_hash, issuer, sequence, status, expires_at }`. See [validation order](/architecture/solana-enforcement#publish-validation-order).
+
+### `set_route(destination_domain: u32, recipient: [u8; 32], mailbox: Pubkey)`
+
+Admin only, and the `mailbox` must be allowlisted. `init_if_needed` at `["route", domain_le]`. Emits `RouteSet`.
+
+### `dispatch()`
+
+Reads the passport, CPIs into the route's mailbox signed by the dispatch-authority PDA, with the 125-byte body.
+
+| Account | Notes |
+|---|---|
+| `passport` | Read-only, must exist |
+| `route` | PDA `["route", domain_le]` |
+| `outbox` | Hyperlane outbox PDA (`["hyperlane", "-", "outbox"]` under the mailbox) |
+| `dispatch_authority` | PDA `["hyperlane_dispatcher", "-", "dispatch_authority"]`, signs via `invoke_signed` |
+| `payer` | Signer |
+| `unique_message` | Fresh keypair, signer |
+| `dispatched_message` | PDA derived by the mailbox |
+| `mailbox_program` | Must equal `route.mailbox` **and** be allowlisted |
+| `spl_noop` | `noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV` |
+| `system_program` | |
+
+Emits `PassportDispatched { circuit_hash, issuer, sequence, destination_domain }`.
+
+## Accounts
+
+<CodeGroup>
+```rust Passport (8 + 125 + 1 bytes)
+pub struct Passport {
+    pub circuit_hash: [u8; 32],
+    pub issuer: [u8; 32],
+    pub sequence: u64,
+    pub capability: u8,
+    pub status: u8,
+    pub issued_at: i64,
+    pub expires_at: i64,
+    pub evidence_hash: [u8; 32],
+    pub advisory_count: u16,
+    pub bump: u8,
+}
+```
+
+```rust IssuerRecord
+pub struct IssuerRecord {
+    pub key: [u8; 32],
+    pub authority: Pubkey,
+    pub registered_at: i64,
+    pub revoked_at: i64,   // 0 while active
+    pub bump: u8,
+}
+```
+
+```rust Config
+pub struct Config { pub admin: Pubkey, pub bump: u8 }
+```
+
+```rust DispatchRoute
+pub struct DispatchRoute {
+    pub destination_domain: u32,
+    pub recipient: [u8; 32],   // left-padded, as Hyperlane expects
+    pub mailbox: Pubkey,
+    pub authority: Pubkey,
+    pub bump: u8,
+}
+```
+</CodeGroup>
+
+`Passport` exposes `canonical_bytes() -> [u8; 125]` (rebuilds the signed layout) and `effective(now) -> Effective { Valid, Stale, Invalid }`.
+
+## Constants
+
+| Constant | Value |
+|---|---|
+| `SIGNING_DOMAIN` | `b"halflife-passport-v1"` |
+| `REGISTER_DOMAIN` | `b"halflife-register-issuer-v1"` |
+| `CORE_LEN` | `125` |
+| `MAX_CLOCK_SKEW_SECS` | `300` |
+| `STATUS_VALID` / `STATUS_INVALID` | `1` / `2` |
+| `ED25519_PROGRAM_ID` | `Ed25519SigVerify111111111111111111111111111` |
+| `HYPERLANE_OUTBOX_DISPATCH` | `4` |
+| `HYPERLANE_MAILBOXES` | devnet, testnet, and mainnet-beta mailboxes |
+
+## Errors
+
+See [Errors](/reference/errors#halflife_passport).

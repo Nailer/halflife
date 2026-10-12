@@ -1,0 +1,52 @@
+---
+title: "Disclosure policy"
+description: "What Halflife scans, what it publishes and when, how embargoes are handled, and what it will never do. The policy existed before the first scan."
+icon: "megaphone"
+---
+
+Halflife computes findings about software other people maintain. This policy governs what's done with them. **It existed before the first scan, not after the first finding** (Gate A).
+
+<Accordion title="In plain terms" icon="lightbulb">
+Because Halflife can reveal that other people's software is affected by a problem, it follows strict rules: warn the maintainers first, give them time, never publish attack code, and never pretend that "quiet" means "secret".
+</Accordion>
+
+## What is scanned
+
+Publicly published packages and their resolved dependency closures, drawn from public registries. **No private repositories**, and no attempt to access anything that isn't already public.
+
+## What is published, and when
+
+A finding is **derived** the moment a scan completes. It's **published** only after these steps:
+
+<Steps>
+  <Step title="Existing public advisories">
+    Where a finding consists solely of matching a package against an already-published advisory (true of every C1 finding), the underlying vulnerability is public and citable. Halflife may publish that a registered system's closure matches it.
+  </Step>
+  <Step title="Named third parties: 14 days' notice">
+    Before publishing that a **specific** third-party package is affected, maintainers are notified and given **14 days** to respond. This applies **even when the advisory is already public**, because aggregation is itself a disclosure: *"this advisory exists"* and *"these four named projects are exposed to it"* are different statements with different consequences.
+  </Step>
+  <Step title="Novel findings: coordinated disclosure">
+    Anything not already published is treated as embargoed: a private report to maintainers, then **90 days** or until a fix ships (whichever is sooner), then publication.
+  </Step>
+</Steps>
+
+**No proof-of-concept exploit code is published for an unfixed vulnerability.**
+
+## Embargo handling
+
+While a finding is embargoed, the affected passport is **not** published as `INVALID`, because an explicit invalidation names the problem by implication. Renewal **stops** instead. The passport expires, consumers resolve `STALE`, and they block, with no public statement about the cause.
+
+### The limit, stated plainly
+
+**Embargo via staleness is quieter than publishing `INVALID`. It isn't confidential.** Passports live on a public chain, and correlated staleness is visible. Randomised expiry windows and staggered renewal reduce this, but neither makes it silent. Anyone relying on embargo-via-staleness for confidentiality shouldn't. **It buys quiet, not secrecy.**
+
+## What Halflife will not do
+
+- Publish a finding about a named third party without prior notification
+- Publish exploit code for an unfixed vulnerability
+- Represent an embargoed finding as confidential
+- Publish a finding it can't reproduce from a committed script
+
+## Contact
+
+See [Reporting a vulnerability](/security/reporting). Reports are acknowledged within **72 hours**.

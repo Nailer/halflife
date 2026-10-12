@@ -1,0 +1,83 @@
+---
+title: "Verify everything"
+description: "One command that exercises every layer, from build to devnet, and fails loudly. Every number it prints is measured during the run."
+icon: "list-checks"
+---
+
+```bash
+./scripts/verify-all.sh
+```
+
+```text
+HALFLIFE — FULL VERIFICATION
+commit 69e761e · 2026-10-12T13:40Z
+…
+────────────────────────────────────────
+  39 passed   0 failed   0 skipped
+  all checks green
+```
+
+It needs `cargo`, `node`, `forge`, `anchor`, and `solana`. Network access is only needed for the devnet sections, which are **skipped** (not failed) when unreachable. Exit code `0` means all green, and `1` means at least one failure.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This one command tests the whole project from top to bottom and prints a tick or a cross for each check. The numbers it shows are measured fresh each time, not copied from anywhere.
+</Accordion>
+
+## What each section checks
+
+<AccordionGroup>
+  <Accordion title="1 · Build" icon="hammer">
+    The host workspace compiles in release.
+  </Accordion>
+  <Accordion title="2 · Unit tests" icon="flask-conical">
+    `cargo test --release`, reporting the total number of assertions passed.
+  </Accordion>
+  <Accordion title="3 · Wire format: three independent implementations" icon="binary">
+    Rust reproduces all vectors. Node reproduces all vectors. Solidity decodes the Rust-produced vectors. **Negative control:** a tampered vector (sequence changed to `424242`) must be **rejected**, because a conformance suite that can't fail proves nothing.
+  </Accordion>
+  <Accordion title="4 · Passport issuance and the fail-safe" icon="shield-check">
+    keygen. Vulnerable closure scans to `INVALID`, patched to `VALID`. Signature and evidence binding verify. The invalid passport blocks (exit 2). **An expired passport resolves to `STALE` and blocks.** A forged `VALID` is rejected. Mismatched evidence is rejected.
+  </Accordion>
+  <Accordion title="5 · Registry and reverse index" icon="database">
+    The whole fleet registers, with at least 8 systems.
+  </Accordion>
+  <Accordion title="6 · Projection" icon="radar">
+    `halo2_gadgets@0.4.0` returns at least 3 affected. `@0.5.0` returns **0 affected** (no false impact). An embargoed circuit is hidden from the public view (public count lower than operator count).
+  </Accordion>
+  <Accordion title="7 · Solana: enforcement and cost" icon="zap">
+    Requires `anchor build` output. Runs `halflife-bench` in LiteSVM and asserts: the CU figure, the kill switch (`PassportInvalid`), replay refused (`SequenceNotIncreasing`), **on-chain fail-safe** (`PassportStale` with nothing published), and the 125-byte round trip. Then six access-control attacks, each of which must fail with its **specific** error: non-admin route → `NotAdmin`, unknown mailbox → `UnknownMailbox`, key you don't hold → `SignerMismatch`, no proof → `MissingSignatureInstruction`, replayed proof → `SignedMessageMismatch`, second `init_config` → refused.
+  </Accordion>
+  <Accordion title="8 · EVM destination" icon="hexagon">
+    `forge test` passes, including `test_blocksWhenNoUpdateEverArrives`.
+  </Accordion>
+  <Accordion title="8b · Fire drill records" icon="flame">
+    Both recorded exercises verify against devnet. The censorship record has **exactly one** on-chain write.
+  </Accordion>
+  <Accordion title="8c · Cross-chain and self-assurance" icon="arrow-left-right">
+    `cross-chain.sh` drives an EVM consumer to a decision (needs `anvil`). The real Hyperlane dispatch verifies against devnet. Halflife issues a passport for itself and reports its status, which is allowed to be unflattering. Only a scan failure fails the check.
+  </Accordion>
+  <Accordion title="9 · Devnet deployments" icon="globe">
+    Both programs are live at their addresses.
+  </Accordion>
+</AccordionGroup>
+
+## Common skips and how to enable them
+
+| Skip message | Enable with |
+|---|---|
+| `Solana programs not built` | `cd solana && anchor build` |
+| `forge-std missing` | `cd evm && forge install foundry-rs/forge-std --no-git` |
+| `no exercise records` | `halflife-exercise run dependency-compromise` |
+| `anvil unavailable` | Install Foundry |
+| `no Hyperlane dispatch record` | `halflife-exercise dispatch` |
+| `devnet unreachable or not deployed` | Network access, or the Solana CLI |
+
+## What CI runs
+
+GitHub Actions (`.github/workflows/halflife.yml`) runs three jobs on every push to `main` and every pull request:
+
+| Job | Steps |
+|---|---|
+| **verify** | Build and test (excluding `halflife-bench`, which needs SBF artifacts), Rust and Node conformance, negative control, `forge test` |
+| **gate** | A clean closure passes, and a closure carrying an advisory is rejected (`scripts/ci-gate.sh`) |
+| **action** | The reusable Action via `uses: ./`: clean passes, vulnerable fails, `deny: "false"` reports without failing |

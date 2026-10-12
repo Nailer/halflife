@@ -1,0 +1,82 @@
+---
+title: "Conformance vectors"
+description: "fixtures/vectors.json pins the encoding, the signing preimage, and the signature from a published test seed. Every implementation must reproduce them byte-for-byte."
+icon: "flask-conical"
+---
+
+Conformance vectors are the specification's teeth. They pin three things **independently**: the canonical encoding, the signing preimage, and the resulting signature.
+
+<Accordion title="In plain terms" icon="lightbulb">
+These are worked examples with exact expected answers. Every implementation, whatever the language, must produce exactly these bytes. If two implementations both match the examples, they agree with each other.
+</Accordion>
+
+## File structure
+
+```json fixtures/vectors.json
+{
+  "spec": "halflife-passport-v1",
+  "note": "Generated from a published test seed. This key must never issue a real passport.",
+  "test_seed_hex": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+  "issuer_pubkey_hex": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+  "core_len": 125,
+  "signing_domain": "halflife-passport-v1",
+  "vectors": [
+    { "name": "…", "core": { … }, "canonical_hex": "…", "preimage_hex": "…", "signature_hex": "…" }
+  ]
+}
+```
+
+<Warning>
+The test seed is the RFC 8032 test key. It's **published and useless for anything but conformance. Never use it to issue a real passport.**
+</Warning>
+
+## The vectors
+
+| Name | sequence | capability | status | issued_at | expires_at | advisory_count |
+|---|---|---|---|---|---|---|
+| `valid_c1_seq1` | 1 | C1 | VALID | 1700000000 | 1700086400 | 0 |
+| `invalid_three_advisories` | 2 | C1 | INVALID | 1700000000 | 1700086400 | 3 |
+| `valid_c5_seq7` | 7 | C5 | VALID | 1700000000 | 1700086400 | 0 |
+| `boundary_extremes` | u64::MAX | C0 | VALID | i64::MIN | i64::MAX | u16::MAX |
+
+`circuit_hash` is `0x11…11` and `evidence_hash` is `0x22…22` throughout.
+
+## Running them
+
+<CodeGroup>
+```bash Rust
+halflife vectors verify fixtures/vectors.json
+```
+
+```bash Node (independent, zero deps)
+node packages/passport-ts/verify-vectors.mjs fixtures/vectors.json
+```
+
+```bash Solidity (decode Rust-produced bytes)
+cd evm && forge test --match-contract ConformanceTest
+```
+</CodeGroup>
+
+```text
+  ok  valid_c1_seq1
+  ok  invalid_three_advisories
+  ok  valid_c5_seq7
+  ok  boundary_extremes
+4 vectors reproduced byte-for-byte (125 bytes per core)
+```
+
+## Why a second implementation matters
+
+The Node implementation is **not** a convenience. It's the only thing that distinguishes *the specification is reproducible* from *two copies of one library agree with each other*. It was written from `passport-spec.md`, not ported from the Rust, and it uses only Node's built-in `crypto`.
+
+## The negative control
+
+A conformance suite that can't fail proves nothing. CI corrupts one vector (`sequence` → `"424242"`) and **requires** the Node implementation to reject it (`scripts/ci-negative-control.sh`).
+
+## Regenerating
+
+```bash
+halflife vectors generate --out fixtures/vectors.json
+```
+
+Regeneration must produce an identical file, because Ed25519 is deterministic. A diff means the format changed, which is a v2 event.

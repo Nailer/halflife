@@ -1,0 +1,121 @@
+---
+title: "Lineage layer"
+description: "Dependency intelligence: reading Cargo.lock, classifying registry packages, matching against OSV live or offline, and producing normalized evidence."
+icon: "git-fork"
+---
+
+`halflife-lineage` resolves a circuit's dependency closure, matches every registry package against published advisories, and produces the `Evidence` a passport is issued over.
+
+<Note>
+**No model is involved anywhere here, and none ever should be.** This path must stay reproducible offline by anyone (commitment D3).
+</Note>
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the part that reads your project's list of libraries and looks each one up in a public database of known security problems. It follows fixed rules, uses no AI, and anyone can rerun it and get exactly the same answer.
+</Accordion>
+
+## Inputs
+
+A **target directory** must contain:
+
+| File | Purpose |
+|---|---|
+| `halflife.toml` | The subject: `name`, `repository`, `commit`, `proof_system` |
+| `Cargo.lock` | The resolved closure that actually shipped |
+
+```toml halflife.toml
+[subject]
+name = "orchard-action-circuit"
+repository = "https://github.com/zcash/orchard"
+commit = "0d1b4b0a84e6e0ba0e0e4e0f8f2f6fbb1c5a7e31"
+proof_system = "halo2"
+```
+
+## Why the lockfile and not `cargo metadata`
+
+The lockfile **is** the resolved closure, it's what actually shipped, and reading it needs neither a toolchain nor a network fetch for the target project. Halflife parses it as TOML and never invokes Cargo.
+
+## Resolution
+
+`lockfile::parse` reads every `[[package]]` and records `name`, `version`, `checksum`, and whether it is **from a registry**:
+
+```rust
+from_registry: p.source.as_deref().map(|s| s.starts_with("registry+")).unwrap_or(false)
+```
+
+Packages are sorted by `(name, version)` and de-duplicated.
+
+- **Registry packages** can be matched against advisories.
+- **Path and workspace members** have no registry identity, so no advisory can match them. They're still **recorded in the closure with an empty advisory list**. Omitting them would hide them from the closure and from `circuit_hash`.
+
+## Advisory sources
+
+<Tabs>
+  <Tab title="Live: OSV (default)">
+    Batched `POST https://api.osv.dev/v1/querybatch`, **400 queries per batch**, ecosystem `crates.io`. Only matches are kept, so an empty map means a clean closure. The evidence records `advisory_source = "osv.dev/v1/querybatch"`.
+
+    On failure: `OSV batch query failed — retry, or use --offline`.
+  </Tab>
+  <Tab title="Offline: pinned snapshot">
+    `--offline --snapshot fixtures/osv-snapshot.json` loads a JSON map of `"name@version" → [advisory ids]`:
+
+    ```json
+    {
+      "halo2_gadgets@0.2.0": ["GHSA-ww9q-8r59-xv46"],
+      "halo2_gadgets@0.3.1": ["GHSA-ww9q-8r59-xv46"],
+      "halo2_gadgets@0.4.0": ["GHSA-ww9q-8r59-xv46"],
+      "orchard@0.13.1": ["GHSA-ww9q-8r59-xv46"],
+      "zcash_primitives@0.27.1": ["GHSA-ww9q-8r59-xv46"]
+    }
+    ```
+
+    The evidence records `advisory_source = "snapshot:<path>"`. Provenance is part of what a passport attests.
+  </Tab>
+</Tabs>
+
+<Warning>
+The snapshot must be **derived** from what the fixtures contain, never hand-picked. An earlier hand-picked snapshot listed only `halo2_gadgets 0.4.0`, so fleet members pinning `0.2.0` and `0.3.1` came back clean while OSV reports every version below `0.5.0` as affected. Regenerate it with `python3 scripts/build-snapshot.py` after changing any fixture.
+</Warning>
+
+## Why OSV and not RustSec
+
+RustSec, which `cargo audit` reads, has **no entry** for `halo2_gadgets`, `orchard`, or `zcash_primitives`. So `cargo audit` returns clean on a tree pinned to the vulnerable versions. OSV federates the GitHub advisory **GHSA-ww9q-8r59-xv46** (CVE-2026-54496) and resolves them.
+
+## Output: `Evidence`
+
+```json evidence.json
+{
+  "evidence_version": 1,
+  "subject": { "name": "…", "repository": "…", "commit": "…", "proof_system": "halo2" },
+  "capability": "C1",
+  "disclosure": "EMBARGOED",
+  "methods": [
+    { "id": "advisory.match",  "description": "Match each registry package name@version against OSV" },
+    { "id": "closure.resolve", "description": "Resolve the dependency closure from Cargo.lock" }
+  ],
+  "advisory_source": "snapshot:fixtures/osv-snapshot.json",
+  "dependencies": [
+    { "name": "halo2_gadgets", "version": "0.4.0", "checksum": "…", "advisories": ["GHSA-ww9q-8r59-xv46"] }
+  ]
+}
+```
+
+`Evidence::normalize()` runs before hashing. Status derivation is a single rule:
+
+```rust
+pub fn derive_status(&self) -> Status {
+    if self.advisory_count() > 0 { Status::Invalid } else { Status::Valid }
+}
+```
+
+## Known C1 limitations
+
+| Limitation | Effect |
+|---|---|
+| No severity filter | A low-severity notice invalidates like a critical one |
+| No reachability analysis | A vulnerable function you never call still invalidates |
+| No runtime vs dev/test distinction | Test and tooling dependencies count |
+| "Unmaintained" notices count | Not every hit is a vulnerability |
+| Cargo only | Other ecosystems' lockfiles aren't parsed |
+
+That's the false-positive cost of failing closed, and it's why early adopters should start with **CI and monitoring** rather than live halts. See [Known limits](/security/known-limits).

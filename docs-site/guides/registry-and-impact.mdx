@@ -1,0 +1,116 @@
+---
+title: "Registry and impact"
+description: "Register a fleet of circuits into the local registry, list their status, enumerate dependencies, and project the blast radius of an advisory, public or operator."
+icon: "radar"
+---
+
+## Register circuits
+
+```bash
+halflife register <target-dir> [--issuer issuer.json] [--offline] \
+  [--disclosure public|embargoed] [--sequence N] [--ttl SECS] [--registry halflife.db]
+```
+
+`register` runs the same scan as `scan`, then writes the circuit, its closure, its advisory hits, and its passport into the SQLite registry (`halflife.db` by default).
+
+```bash
+for f in fixtures/fleet/*/ fixtures/orchard-vulnerable fixtures/orchard-patched; do
+  halflife register "${f%/}" --offline --disclosure public
+done
+```
+
+```text
+registered e8d694d442b6a4b7 in halflife.db
+```
+
+If the evidence is embargoed, you'll also see `evidence withheld — finding is embargoed`.
+
+<Accordion title="In plain terms" icon="lightbulb">
+Registering adds a project to your local notebook of scanned projects, so you can later ask questions across all of them at once.
+</Accordion>
+
+## List the fleet
+
+```bash
+halflife registry list
+```
+
+```text
+CIRCUIT            ID            DEPS  STATUS    SUBJECT
+orchard-action-c…  e8d694d442b6    54  INVALID   https://github.com/zcash/orchard
+…
+8 registered · 3 invalid · 5 clean
+```
+
+`STATUS` is resolved at read time: `INVALID`, `STALE` (expired), `VALID`, or `NONE` (registered with no passport, which is **not** healthy).
+
+## List known dependencies
+
+```bash
+halflife registry deps
+```
+
+Prints every distinct `name@version` and how many circuits reach it. This runs as **operator** (the CLI is an operator tool). The public surface is the export.
+
+## Project impact
+
+```bash
+halflife impact halo2_gadgets@0.4.0              # public audience
+halflife impact halo2_gadgets@0.4.0 --operator   # include embargoed findings
+halflife impact halo2_gadgets@0.4.0 --json       # machine-readable
+```
+
+```json
+{
+  "dependency": "halo2_gadgets",
+  "version": "0.4.0",
+  "audience": "OPERATOR",
+  "affected": [
+    { "circuit_hash": "e8d6…", "name": "…", "repository": "…", "advisories": ["GHSA-ww9q-8r59-xv46"] }
+  ],
+  "clean": [],
+  "not_reached": 5,
+  "advisories": ["GHSA-ww9q-8r59-xv46"]
+}
+```
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Nothing affected (`AFFECTED none`) |
+| `2` | At least one circuit affected |
+
+The target must be `name@version`. The CLI splits on the **last** `@`.
+
+<Accordion title="In plain terms" icon="lightbulb">
+"If this exact library version is bad, which of my registered projects are hurt?" The answer comes in three groups: affected, uses it but fine, and doesn't use it. The exit code lets scripts react automatically.
+</Accordion>
+
+## Public vs operator
+
+Register one circuit as embargoed and compare:
+
+```bash
+halflife register fixtures/orchard-vulnerable --offline --disclosure embargoed --sequence 2
+halflife impact halo2_gadgets@0.4.0 --json | jq '.affected | length'             # public
+halflife impact halo2_gadgets@0.4.0 --operator --json | jq '.affected | length'  # operator
+```
+
+The public count is lower. The embargoed circuit is **absent** from the public result. It isn't redacted, and nothing in the counts reveals that it exists.
+
+## Export for the control room
+
+```bash
+halflife export                                   # → apps/control-room/public/state.json
+halflife export --operator --out apps/control-room/public/state.operator.json
+```
+
+The export includes circuits, dependencies (each with its projection), exercise records, Hyperlane dispatch records, deployment addresses, and measured CU figures. See [Export schema](/reference/export-schema).
+
+## Rebuild the fleet fixtures
+
+```bash
+python3 scripts/build-fleet.py      # re-derive closures from crates.io
+python3 scripts/build-snapshot.py   # re-pin the OSV snapshot from those closures
+```
+
+`build-fleet.py` resolves each crate's published requirement for the tracked crates (`halo2_gadgets`, `halo2_proofs`, `orchard`, `zcash_primitives`) to the highest release that satisfies it, using Cargo caret semantics. Yanked versions are deliberately kept: yanking blocks *new* resolutions but doesn't touch an existing `Cargo.lock`, so a committed lockfile can still pin a yanked, vulnerable version.

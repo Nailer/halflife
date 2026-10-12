@@ -1,0 +1,49 @@
+---
+title: "Self-review findings"
+description: "Two access-control holes found in Halflife's own passport program on 7 October 2026: what was wrong, why it mattered, how it was fixed, and how the fixes are pinned."
+icon: "bug"
+---
+
+Both holes were in `halflife-passport`, were present in the version deployed to devnet at the time, and were found while preparing the first real Hyperlane dispatch. **Neither was exploited.** The program holds no value, and only the project had published against it.
+
+<Accordion title="In plain terms" icon="lightbulb">
+While preparing a feature, the developer re-read their own code and found two security holes: anyone could redirect where the official signature was sent, and anyone could hijack an issuer's identity. Both were fixed, tested, and written up publicly. A security project that quietly fixed its own holes would be doing exactly what it criticises.
+</Accordion>
+
+## 1. Anyone could set a dispatch route
+
+**What was wrong.** `set_route` used `init_if_needed` and checked nothing about who was calling. Any account could create or overwrite the route for any destination domain, **including the mailbox program the route points at**.
+
+**Why it mattered.** `dispatch` calls `invoke_signed` into whichever program the route names, passing the registry's dispatch-authority PDA as a signer. Solana carries signer privileges down a CPI chain. A route pointing at an attacker's program would let it forward that signature to the **real** Hyperlane mailbox and dispatch arbitrary bytes **with Halflife as the sender**. That defeats the one check the destination relies on (`originSender`).
+
+**The fix, as two independent controls:**
+
+1. Routes are **admin-only**, through a `Config` account created by `init_config`.
+2. The route's mailbox must be on a **fixed allowlist** of known Hyperlane mailboxes in the program source. That's checked when a route is set **and again at dispatch**, so a compromised admin key still can't aim the signature at a program of its choosing.
+
+## 2. Anyone could register someone else's issuer key
+
+**What was wrong.** `register_issuer` recorded whoever called first as that key's `authority`, with no proof they held the key.
+
+**Why it mattered.** An issuer's public key is public. Anyone could register it first and then revoke it, squatting an identity and locking the real issuer out.
+
+**The fix.** Registration requires the issuer's own ed25519 signature over `halflife-register-issuer-v1 ‖ authority`, verified through the sigverify precompile. Binding the authority makes the proof **non-transferable**.
+
+## How the fixes are pinned
+
+`cargo run --release -p halflife-bench` runs each attack with a keypair that has no authority and **requires the specific refusal**:
+
+| Attack | Required result |
+|---|---|
+| `set_route` by a non-admin | `NotAdmin` |
+| `set_route` to an unknown mailbox, even as admin | `UnknownMailbox` |
+| `init_config` a second time, to seize the admin role | refused |
+| Register a key you don't hold | `SignerMismatch` |
+| Register with no proof at all | `MissingSignatureInstruction` |
+| Replay another registrant's proof | `SignedMessageMismatch` |
+
+`scripts/verify-all.sh` fails if any of these lines is missing. It matches the error **name**, so a different failure can't pass.
+
+## Why this is published
+
+The project's argument is that undisclosed weak verification is the problem. A security tool that quietly fixed holes in its own enforcement layer, and told no one, would be demonstrating the opposite.

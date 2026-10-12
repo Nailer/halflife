@@ -1,0 +1,29 @@
+---
+title: "Invariants"
+description: "The six safety invariants (I1–I6), each with the exact place it's enforced and the test that pins it."
+icon: "lock"
+---
+
+| # | Invariant | Enforced at | Pinned by |
+|---|---|---|---|
+| **I1** | No consumer may treat an unrefreshed claim as valid indefinitely | `PassportCore::status_at`, `Passport::effective`, `statusAt` | `expiry_degrades_to_stale_not_valid` |
+| **I2** | `STALE` is derived by the reader and **not issuable** | `Status` has no `Stale` variant; decoders reject other bytes | `UnknownStatus` paths |
+| **I3** | `STALE ≠ INVALID`. Staleness is not a finding. | `Block::Stale` vs `Block::Invalid`; distinct program errors; amber vs red in the UI | Consumer error codes 6002 / 6003 |
+| **I4** | **Absence is not permission** | `decide(Option<…>)` → `Block::Missing`; a required account on Solana; `NoPassport()` on EVM | `absence_is_not_permission`, `test_absenceIsNotPermission` |
+| **I5** | A passport from the reader's future is rejected | `within_clock_bounds`, `IssuedInFuture` | `a_passport_from_the_future_is_rejected` |
+| **I6** | Suppressing delivery can't hold a circuit open | Expiry → `Stale` → block, with no receipt-time expiry rejection | `test_blocksWhenNoUpdateEverArrives`; censorship drill (exactly 1 write) |
+
+<Accordion title="In plain terms" icon="lightbulb">
+These six rules must never be broken. Each one is written into the code in a specific place and checked by a specific automated test, so a future change that breaks one gets caught.
+
+1. Labels must be renewed, or they stop counting.
+2. Nobody can declare their own label "fresh".
+3. "Out of date" and "problem found" are different things.
+4. No label means stop.
+5. Labels dated in the future are rejected.
+6. Blocking messages can only make things stop, never keep them running.
+</Accordion>
+
+## Why I6 is the one that matters
+
+Steps where a message *arrives* demonstrate the fast path. The safety property is what happens when **nothing arrives at all**. The relayer-censorship drill exists to show it on real infrastructure. A baseline passport, then silence, and the consumer blocked **41 seconds later on expiry alone**, after **exactly one** on-chain write.

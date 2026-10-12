@@ -1,0 +1,64 @@
+---
+title: "Evidence format"
+description: "The off-chain evidence document: fields, canonicalization, hashing, and the binding rules that tie it to a passport."
+icon: "file-json"
+---
+
+`Evidence` is the full, auditable, off-chain record a passport is issued over. It's bound to the passport by `evidence_hash = SHA-256(canonical JSON)`.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the detailed report behind the label. It lists every library checked and every problem found. The label carries a fingerprint of this report so the two can always be matched.
+</Accordion>
+
+## Fields (in canonical order)
+
+<ResponseField name="evidence_version" type="u8" required>Currently `1`.</ResponseField>
+<ResponseField name="subject" type="object" required>
+  <Expandable title="properties">
+    <ResponseField name="name" type="string">Display name</ResponseField>
+    <ResponseField name="repository" type="string">Source location</ResponseField>
+    <ResponseField name="commit" type="string">Exact revision</ResponseField>
+    <ResponseField name="proof_system" type="string">Free text</ResponseField>
+  </Expandable>
+</ResponseField>
+<ResponseField name="capability" type='"C0" … "C5"' required>Tier executed. `"C1"` for every scan today.</ResponseField>
+<ResponseField name="disclosure" type='"PUBLIC" | "EMBARGOED"'>**Defaults to `EMBARGOED` if absent** (fails closed).</ResponseField>
+<ResponseField name="methods" type="array" required>
+  <Expandable title="items">
+    <ResponseField name="id" type="string">`closure.resolve` or `advisory.match`</ResponseField>
+    <ResponseField name="description" type="string">Human-readable description</ResponseField>
+  </Expandable>
+</ResponseField>
+<ResponseField name="advisory_source" type="string" required>`osv.dev/v1/querybatch` or `snapshot:<path>`. Provenance is attested.</ResponseField>
+<ResponseField name="dependencies" type="array" required>
+  <Expandable title="items">
+    <ResponseField name="name" type="string" />
+    <ResponseField name="version" type="string" />
+    <ResponseField name="checksum" type="string | null">Registry checksum from the lockfile</ResponseField>
+    <ResponseField name="advisories" type="string[]">Matched IDs for this exact `name@version`. Empty for path/workspace members.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Canonicalization
+
+Before hashing, `normalize()`:
+
+1. Sorts `dependencies` (by name, then version, then checksum, then advisories).
+2. Sorts and de-duplicates each `advisories` list.
+3. Sorts `methods` by `id`.
+
+Then `serde_json::to_vec` serializes it compactly, with no whitespace, in declared field order.
+
+## Derived values
+
+| Value | Definition |
+|---|---|
+| `advisory_count()` | Sum of `advisories.len()` across dependencies (capped at `u16::MAX` in the core) |
+| `derive_status()` | `INVALID` if `advisory_count > 0`, else `VALID` |
+| `hash()` | `SHA-256(canonical_json)` → `evidence_hash` |
+| `circuit_hash()` | See [Circuit identity](/concepts/circuit-identity) |
+| `is_public()` | `disclosure == PUBLIC` |
+
+## Binding rule
+
+A verifier given both artifacts **MUST** confirm that the evidence reproduces **both** `evidence_hash` and `circuit_hash`.

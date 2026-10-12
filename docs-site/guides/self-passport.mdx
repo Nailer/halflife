@@ -1,0 +1,42 @@
+---
+title: "Halflife's own passport"
+description: "Halflife issues a passport for its own codebase under the same rules, and publishes the unflattering result."
+icon: "scan-face"
+---
+
+The system that asks other projects for cryptographic provenance is subject to the same instrument, with no exemption.
+
+```bash
+./scripts/self-passport.sh [out-dir]   # default out-dir: self/
+```
+
+The script scans the repository root (`halflife.toml` + `Cargo.lock`) with `--disclosure public`. It uses `$HALFLIFE_ISSUER` if set, otherwise `issuer.json`, generating one if missing. There's no special case and no curated subset.
+
+## Current result: `INVALID`
+
+| | |
+|---|---|
+| Closure | 653 packages |
+| Carrying published advisories | 15 |
+| Status | `INVALID` |
+| Capability claimed | C1 |
+
+The findings are transitive dependencies of the Solana and test-harness stack (`litesvm`, `solana-client`, `solana-sdk`), reaching crates like `bincode`, `curve25519-dalek`, `ed25519-dalek`, and `rustls-webpki`. They arrive through `halflife-bench` and `halflife-exercise`, the crates that **measure and exercise** the system, not through the passport primitive.
+
+<Accordion title="In plain terms" icon="lightbulb">
+Halflife checked itself and failed its own test, because some of the tools it uses for testing and benchmarking depend on libraries with known issues. It publishes that result openly instead of hiding it or bending the rules to pass.
+</Accordion>
+
+## Why it's published rather than suppressed
+
+1. **It's the only honest option.** A project whose premise is *no claim without measurement* can't exempt itself the moment the measurement is unflattering. Scoping the scan to the crates that happen to pass would be exactly the curation this tool exists to expose.
+2. **It shows the tool works.** A self-scan that returned `VALID` would prove nothing. Pointing the instrument at itself produced a real, specific, actionable list.
+3. **It's the ordinary case.** Most real projects carry transitive advisories they didn't choose and can't immediately remove.
+
+## What it doesn't mean
+
+It doesn't mean the passport primitive is unsound. `halflife-core` has no dependency carrying an advisory.
+
+## What would change it
+
+Pinning or replacing the affected transitive dependencies, or **splitting the workspace** so the benchmark and exercise harnesses resolve separately from the shipped crates. Neither has been done yet, so the passport reports `INVALID` until one of them is.

@@ -1,0 +1,64 @@
+---
+title: "Export schema"
+description: "The JSON state produced by halflife export and consumed by the control room, field by field."
+icon: "file-output"
+---
+
+`halflife export` writes the entire system state as one JSON document. The control room is a **client** of this file, not a second source of truth.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the single data file the dashboard reads. Everything the website shows comes from here, so this page describes each part of it.
+</Accordion>
+
+## Top level
+
+<ResponseField name="generatedAt" type="string (unix seconds)" required />
+<ResponseField name="audience" type='"PUBLIC" | "OPERATOR"' required />
+<ResponseField name="circuits" type="Circuit[]" required>Only `PUBLIC`-disclosure circuits in a public export.</ResponseField>
+<ResponseField name="dependencies" type="Dependency[]" required>Each with its projection for this audience.</ResponseField>
+<ResponseField name="exercises" type="Exercise[]" required>Fire-drill records. See [Exercise records](/reference/exercise-records).</ResponseField>
+<ResponseField name="hyperlaneDispatches" type="HyperlaneDispatch[]">Dispatch records.</ResponseField>
+<ResponseField name="deployments" type="object" required>
+  <Expandable title="solanaDevnet">
+    <ResponseField name="passportProgram" type="string">`CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2`</ResponseField>
+    <ResponseField name="consumerProgram" type="string">`BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW`</ResponseField>
+    <ResponseField name="hyperlaneMailbox" type="string">`5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54`</ResponseField>
+  </Expandable>
+</ResponseField>
+<ResponseField name="measured" type="object" required>
+  `{ consumerCheckCu: 1520, publishCu: 11550, registerIssuerCu: 7406 }`
+</ResponseField>
+
+## `Circuit`
+
+| Field | Type | Notes |
+|---|---|---|
+| `circuitHash` | hex string | |
+| `name`, `repository`, `commit`, `proofSystem` | string | From `halflife.toml` |
+| `dependencies` | number | Closure size |
+| `status` | `VALID \| STALE \| INVALID \| NONE` | Resolved at export time |
+| `capability` | number | 0 if `NONE` |
+| `sequence`, `expiresAt` | string | 64-bit values as strings |
+| `issuer` | string | base58, or empty if `NONE` |
+
+## `Dependency`
+
+| Field | Type |
+|---|---|
+| `name`, `version` | string |
+| `circuits` | number of visible circuits reaching it |
+| `affected`, `clean` | numbers from projection |
+| `advisories` | string[] |
+
+## `HyperlaneDispatch`
+
+| Field | Type |
+|---|---|
+| `transaction`, `mailbox`, `mailbox_message_account`, `message_id`, `sender`, `recipient`, `circuit_hash` | string |
+| `slot`, `nonce`, `origin_domain`, `destination_domain` | number |
+| `recipient_is_placeholder` | boolean |
+| `limits` | string[] (stated limits travel with the data) |
+
+## Public vs operator
+
+A public export **omits** any circuit whose latest passport isn't `PUBLIC` (including circuits with no passport) and computes `dependencies` with `Audience::Public`. Nothing is redacted, so nothing reveals what was withheld.

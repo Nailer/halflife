@@ -1,0 +1,83 @@
+---
+title: "Run fire drills"
+description: "Execute the dependency-compromise and relayer-censorship scenarios against Solana devnet, produce re-verifiable ledgers, and check anyone's record against the cluster."
+icon: "flame"
+---
+
+A **fire drill** is a controlled threat scenario run against **real infrastructure**: Solana devnet and the deployed programs. Every timing comes from an observed on-chain event, and every record can be re-checked by a third party without trusting Halflife.
+
+<Accordion title="In plain terms" icon="lightbulb">
+A fire drill is a rehearsal of an emergency, run on the real Solana test network. It records exactly what happened and when, with transaction IDs anyone can look up, so you don't have to take the project's word for how fast things stop.
+</Accordion>
+
+## The two scenarios
+
+<Tabs>
+  <Tab title="dependency-compromise">
+    **The fast path.** A dependency becomes unsafe, a passport is invalidated, and the consumer refuses to proceed.
+
+    Measured: **4 s** containment.
+  </Tab>
+  <Tab title="relayer-censorship">
+    **The one that matters.** A baseline `VALID` passport is published, then **nothing further is sent**: no invalidation, no update, no second write. The consumer blocks anyway, on expiry alone.
+
+    Measured: **41 s** containment, with **exactly one on-chain write**.
+
+    `verify-all.sh` asserts that count. If a second write appeared, the block would have been caused by something published rather than by absence.
+  </Tab>
+</Tabs>
+
+Two further scenarios, **issuer compromise** and **deployment drift**, are defined but **not armed**. They need threshold signing and artifact identity first (scope commitment S2).
+
+## Run
+
+```bash
+cargo build --release -p halflife-exercise
+./target/release/halflife-exercise run dependency-compromise
+./target/release/halflife-exercise run relayer-censorship --ttl 45
+```
+
+| Flag | Default | Notes |
+|---|---|---|
+| `--payer` | `solana/deploy-keypair.json` | Funded devnet keypair. It's also the issuer key in drills. |
+| `--rpc` | `https://api.devnet.solana.com` | |
+| `--out` | `exercises` | Where the record is written |
+| `--ttl` | `45` | The censorship scenario waits this long, so keep it short |
+
+The issuer is registered automatically if it isn't already. Output ends with:
+
+```text
+record  exercises/relayer-censorship-<unix>.json
+verify  halflife-exercise verify exercises/relayer-censorship-<unix>.json
+```
+
+## Verify anyone's record
+
+```bash
+./target/release/halflife-exercise verify exercises/relayer-censorship-1790859373.json
+```
+
+`verify` **re-fetches every recorded signature from the cluster**. Timings are derived from recorded timestamps at read time, and **no duration is stored**, so a reader recomputes it and either agrees or has found a problem.
+
+## Reading a record
+
+```json
+{
+  "exercise_id": "relayer-censorship-1790859373",
+  "scenario": "RELAYER_CENSORSHIP",
+  "cluster": "devnet",
+  "circuit_hash": "e8d694d4…",
+  "events": [
+    { "seq": 1, "kind": "SOLANA_COMMITTED",  "evidence": { "type": "SOLANA_TRANSACTION", "signature": "62kc…", "slot": 506279516 } },
+    { "seq": 2, "kind": "RELAYER_STOPPED",   "evidence": { "type": "LOCAL", "note": "no further transaction is submitted for this circuit" } },
+    { "seq": 3, "kind": "PASSPORT_EXPIRED",  "evidence": { "type": "LOCAL", "note": "expires_at 1790859414 passed" } },
+    { "seq": 4, "kind": "CONSUMER_BLOCKED",  "evidence": { "type": "LOCAL", "note": "InstructionError(0, Custom(6002))" } }
+  ]
+}
+```
+
+`Custom(6002)` is the consumer's `PassportStale` error. Events with evidence type `LOCAL` are labelled as **not independently verifiable** rather than presented alongside on-chain evidence as if they carried the same weight. See [Exercise records](/reference/exercise-records).
+
+## Watch it in the control room
+
+The **Fire drills** view replays each record at the gaps in its own timeline, scaled to stay watchable, with the scale factor shown. Signatures link to Solana Explorer.

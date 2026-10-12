@@ -1,0 +1,135 @@
+---
+title: "Gate pull requests in CI"
+description: "Add the reusable Halflife GitHub Action so a pull request that introduces a vulnerable crypto dependency fails before anyone merges it."
+icon: "git-pull-request"
+---
+
+The Action is the adoption wedge: free, quick to add, and with nothing on-chain. A pull request that pulls a vulnerable dependency into your closure **fails the build** before it merges.
+
+<Accordion title="In plain terms" icon="lightbulb">
+GitHub can run automatic checks every time someone proposes a code change. This adds one more check: "does this change bring in a library with a known security problem?" If it does, the change is marked as failing, and it can't be merged by accident.
+</Accordion>
+
+## Minimal setup
+
+Create `.github/workflows/halflife.yml`:
+
+```yaml .github/workflows/halflife.yml
+name: halflife
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  advisory-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Nailer/halflife@main     # pin a commit SHA in real use
+        with:
+          path: .                       # directory containing Cargo.lock
+```
+
+<Warning>
+**Pin a commit SHA** (`Nailer/halflife@<40-char-sha>`) rather than `@main` in production. A moving reference lets upstream changes alter your gate without review.
+</Warning>
+
+## What it does
+
+<Steps>
+  <Step title="Restores a cache">
+    `~/.cargo/registry`, `~/.cargo/git`, and the Action's own `target/`, keyed on OS, action ref, and SHA.
+  </Step>
+  <Step title="Builds the CLI from source">
+    `cargo build --release --locked -p halflife-cli`. That takes a few minutes the first time and is cached after.
+  </Step>
+  <Step title="Copies your lockfile">
+    The Action copies `Cargo.lock` (and `halflife.toml` if present) into `$RUNNER_TEMP`. **Your tree isn't modified.** If you have no `halflife.toml`, it generates one from `GITHUB_REPOSITORY`, `GITHUB_SERVER_URL`, `GITHUB_SHA`, and the `proof-system` input.
+  </Step>
+  <Step title="Generates a throwaway issuer key">
+    Each run uses a fresh key in `$RUNNER_TEMP`. The passport is for the gate's own use and isn't published.
+  </Step>
+  <Step title="Scans and reports">
+    Runs `halflife scan`, writes the output to the **job summary**, and sets the `status` output.
+  </Step>
+  <Step title="Fails on any advisory">
+    If the status line reads `Invalid`, it emits `::error title=Advisory in dependency closure::` and exits 1, unless `deny: "false"`.
+  </Step>
+</Steps>
+
+## Inputs and outputs
+
+| Input | Default | Description |
+|---|---|---|
+| `path` | `.` | Directory containing the `Cargo.lock` to check |
+| `proof-system` | `unknown` | Free-text label recorded in the generated manifest (`halo2`, `groth16`, `noir`, …) |
+| `offline` | `"false"` | Use the pinned advisory snapshot shipped with the Action instead of querying OSV |
+| `deny` | `"true"` | Exit non-zero when an advisory is found. Set `"false"` to report without failing. |
+
+| Output | Values |
+|---|---|
+| `status` | `clean` or `advisories` |
+
+## Recipes
+
+<AccordionGroup>
+  <Accordion title="Report-only mode (don't block merges yet)" icon="eye">
+    ```yaml
+    - uses: Nailer/halflife@<sha>
+      id: halflife
+      with:
+        path: .
+        deny: "false"
+    - if: steps.halflife.outputs.status == 'advisories'
+      run: echo "::warning::Halflife found advisories — see the job summary"
+    ```
+    This is the recommended starting point on large workspaces, because C1 has no severity or reachability filter.
+  </Accordion>
+  <Accordion title="Check a sub-crate in a monorepo" icon="folder-tree">
+    ```yaml
+    - uses: Nailer/halflife@<sha>
+      with:
+        path: circuits/payments
+        proof-system: halo2
+    ```
+  </Accordion>
+  <Accordion title="Deterministic, network-free CI" icon="wifi-off">
+    ```yaml
+    - uses: Nailer/halflife@<sha>
+      with:
+        path: .
+        offline: "true"
+    ```
+    The snapshot only knows the advisories it was built with. Use this for reproducibility tests, not as your only gate.
+  </Accordion>
+  <Accordion title="Use the CLI directly instead of the Action" icon="terminal">
+    ```yaml
+    - run: cargo install --git https://github.com/Nailer/halflife halflife-cli --locked
+    - run: |
+        halflife keygen --out "$RUNNER_TEMP/k.json"
+        halflife scan . --issuer "$RUNNER_TEMP/k.json" --deny
+    ```
+    `--deny` exits **2** on any advisory.
+  </Accordion>
+</AccordionGroup>
+
+## It's tested in both directions
+
+A gate that only ever passes proves nothing. Halflife's own CI exercises the Action through `uses: ./`, exactly as you would, with lockfile-only inputs (no `halflife.toml`):
+
+| Case | Expected |
+|---|---|
+| Clean lockfile (`orchard-patched`) | Step succeeds, `status == clean` |
+| Vulnerable lockfile (`orchard-vulnerable`) | Step **fails**, `status == advisories` |
+| Vulnerable with `deny: "false"` | Step succeeds, `status == advisories` |
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `::error title=No Cargo.lock::` | `path` doesn't contain a lockfile | Point `path` at the right directory, or commit your `Cargo.lock` |
+| First run takes minutes | Building the CLI from source | Expected. Later runs hit the cache. |
+| Many findings on a big workspace | C1 counts test and tooling dependencies | Start with `deny: "false"`, then triage |
+| OSV request failed | Network or OSV outage | Re-run, or set `offline: "true"` temporarily |

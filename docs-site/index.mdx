@@ -1,0 +1,122 @@
+---
+title: "Halflife"
+sidebarTitle: "Introduction"
+description: "A use-by date for cryptographic security. Signed, expiring security passports for zero-knowledge circuits, enforced on Solana and made portable over Hyperlane."
+icon: "house"
+---
+
+**Halflife** issues a signed, expiring **security passport** for a zero-knowledge circuit. A passport is a 125-byte claim stating which circuit build was examined, which issuer examined it, which verification capability was executed, and the instant at which that evidence stops being current. On-chain programs read the passport as a read-only account and **refuse to accept proofs** when it is `INVALID`, `STALE`, or missing. When a vulnerability is published in cryptography your protocol depends on, your program halts within one slot. It doesn't need a governance vote, a redeploy, or anyone to be awake.
+
+<Accordion title="In plain terms" icon="lightbulb">
+Think of the expiry date printed on a carton of milk. The milk might still be fine the day after the date, but the shop isn't allowed to sell it, because nobody can vouch for it any more.
+
+Halflife puts that kind of date on the safety check of a piece of cryptographic software. A small signed label says "this was checked, this is how it was checked, and the check is good until this moment." Programs on a blockchain look at the label before doing anything important. If the label says a problem was found, or the date has passed, or there's no label at all, the program stops by itself. It doesn't wait for a person to notice.
+</Accordion>
+
+<CardGroup cols={2}>
+  <Card title="What is Halflife?" icon="circle-help" href="/get-started/what-is-halflife">
+    The idea from first principles, written for every reader, technical or not.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/get-started/quickstart">
+    Build the CLI, scan a vulnerable and a patched circuit, and watch one pass and one block. About ten minutes.
+  </Card>
+  <Card title="Check your Cargo.lock" icon="search-check" href="/get-started/check-yours">
+    Paste a lockfile into the live site and get a would-pass or would-fail verdict. You don't need to install anything.
+  </Card>
+  <Card title="Add the CI gate" icon="git-pull-request" href="/guides/ci-github-action">
+    Fail any pull request that pulls a vulnerable crypto dependency into your build.
+  </Card>
+  <Card title="Enforce on Solana" icon="shield-check" href="/guides/integrate-solana-program">
+    Gate your program's proof path on a passport for 1,520 compute units.
+  </Card>
+  <Card title="Read the specification" icon="file-code" href="/reference/passport-wire-format">
+    The frozen 125-byte wire format, byte by byte.
+  </Card>
+</CardGroup>
+
+## The one-paragraph version
+
+In 2026, several cryptographic systems that had each passed professional review were found to be broken, and some of those flaws had been present for four to six years. The code had not changed. What changed was what the state of the art could find in it. **So an audit is a perishable good.** Halflife treats it as one. It records what was actually verified about an exact circuit build and when that verification stops being current, and it makes that record enforceable by programs on-chain.
+
+<Accordion title="In plain terms" icon="lightbulb">
+A security check tells you what experts could find *at the time it was done*. Tools keep improving, so an old "all clear" may miss problems that today's tools would catch. Halflife doesn't pretend an old check lasts forever. It gives every check an expiry date and lets software react automatically when the check runs out or turns up a problem.
+</Accordion>
+
+## What you get
+
+<Steps>
+  <Step title="Am I affected?" icon="search">
+    `halflife scan .` resolves your `Cargo.lock` dependency closure and matches every registry package against [OSV](https://osv.dev). It finds advisories that `cargo audit` misses. For example, RustSec has no entry for `halo2_gadgets`, `orchard`, or `zcash_primitives`, so `cargo audit` reports a vulnerable tree as clean.
+  </Step>
+  <Step title="Don't let me ship it again" icon="git-pull-request">
+    The reusable GitHub Action fails a pull request that introduces an advisory into your closure before anyone merges it.
+  </Step>
+  <Step title="Stop my protocol automatically" icon="octagon-x">
+    Your on-chain program checks a passport before it accepts a proof. When the passport flips to `INVALID` or ages into `STALE`, the program stops in the next slot.
+  </Step>
+</Steps>
+
+<Accordion title="In plain terms" icon="lightbulb">
+1. **Find out.** A command looks through every software library your project uses and tells you whether any of them has a known security problem.
+2. **Prevent.** A robot check on GitHub refuses new code changes that would bring a known-bad library into your project.
+3. **React.** Your blockchain program checks the safety label before it trusts anything. A bad or expired label makes it stop on its own.
+</Accordion>
+
+## The property that makes it trustworthy
+
+<Note>
+**Suppressing the message produces the safe outcome.** A passport can't claim its own freshness. `STALE` is computed by the reader against the reader's own clock, and no issuer can ever sign it. A program that stops receiving updates therefore **blocks**. There's no path where losing the network means carrying on with stale trust.
+</Note>
+
+<Accordion title="In plain terms" icon="lightbulb">
+Imagine a door that stays unlocked only while someone keeps phoning in to say "all is well." If the calls stop for any reason (the phone line is cut, the caller is asleep, an attacker blocks the line), the door locks itself. An attacker gains nothing by cutting the line, because silence locks the door rather than opening it.
+</Accordion>
+
+## Measured, not claimed
+
+| Measurement | Value | Context |
+|---|---|---|
+| Consumer passport check | **1,520 CU** | 0.76% of the default 200,000 CU transaction budget |
+| Publish a signed passport | 11,550 CU | Includes ed25519 sigverify introspection |
+| Register an issuer | 7,406 CU | Includes proof-of-possession check |
+| Containment, dependency compromise | 4 s | Invalidation published and enforced on devnet |
+| Containment, relayer censorship | 41 s | **No invalidation published.** The consumer blocked on expiry alone |
+
+Every figure is reproducible from a committed script. See [Measurements](/resources/measurements).
+
+## Built on three ecosystems, each load-bearing
+
+<CardGroup cols={3}>
+  <Card title="Zcash" icon="target">
+    The cryptographic target. `halo2_gadgets` below 0.5.0 carried a missing copy constraint (GHSA-ww9q-8r59-xv46 / CVE-2026-54496).
+  </Card>
+  <Card title="Solana" icon="zap">
+    Canonical state and enforcement. Read-only passport accounts make a hot-path check affordable.
+  </Card>
+  <Card title="Hyperlane" icon="network">
+    Portability. A PDA-signed dispatch proves that the registry itself is the sender.
+  </Card>
+</CardGroup>
+
+## What Halflife does not claim
+
+<Warning>
+Halflife **does not prove a circuit is secure.** It records what was tested, with which capability, against which exact build. The current capability tier is **C1**: dependency closure plus advisory matching, with no model anywhere in that path. Higher tiers are specified and deliberately **not claimed**. Read [Known limits](/security/known-limits) before you rely on Halflife in production.
+</Warning>
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="I'm new to all of this" icon="sprout" href="/get-started/what-is-halflife">
+    Start with the plain-language explainer.
+  </Card>
+  <Card title="I'm a developer" icon="terminal" href="/get-started/quickstart">
+    Clone, build, and run it.
+  </Card>
+  <Card title="I'm a security lead" icon="shield" href="/security/overview">
+    Read the threat model and trust boundaries.
+  </Card>
+  <Card title="I'm evaluating the project" icon="briefcase" href="/resources/product-and-business">
+    Product tiers, landscape, and status.
+  </Card>
+</CardGroup>

@@ -1,0 +1,54 @@
+---
+title: "Supersession and replay"
+description: "How the signed sequence number orders passports per (circuit, issuer), and how high-water marks defeat replay across chains without per-chain signatures."
+icon: "list-ordered"
+---
+
+## Sequence
+
+`sequence` is a `u64`, **monotonic per `(circuit_hash, issuer)`**, and it sits **inside the signed core**. Renumbering a passport invalidates its signature (test `sequence_is_bound_into_the_signature`).
+
+A passport **supersedes** another only when all three hold:
+
+```rust
+pub fn supersedes(&self, other: &PassportCore) -> bool {
+    self.circuit_hash == other.circuit_hash
+        && self.issuer == other.issuer
+        && self.sequence > other.sequence
+}
+```
+
+A passport from a **different issuer never supersedes**. It coexists, and the consumer's quorum policy decides what that means.
+
+<Accordion title="In plain terms" icon="lightbulb">
+Every label for the same project from the same checker carries a counter: 1, 2, 3, and so on. A newer label replaces an older one only if its number is higher. Because the number is part of what's signed, nobody can take an old label and relabel it as a new one.
+</Accordion>
+
+## High-water marks defeat replay
+
+Every place that stores passports keeps a **high-water mark** per `(circuit_hash, issuer)` and rejects anything **at or below** it.
+
+| Store | Rule | Error |
+|---|---|---|
+| Solana `publish` | `parsed.sequence > passport.sequence` once the account exists | `SequenceNotIncreasing` |
+| EVM `handle` | `p.sequence <= stored.sequence` is rejected when present (equal too) | `SequenceNotIncreasing(incoming, stored)` |
+
+Equal sequences are rejected as well. A re-delivery carries no new information and must not reset anything (test `test_refusesRedeliveryOfTheSameSequence`).
+
+This defeats replay of a superseded passport, **including onto a chain that hasn't yet seen the newer one**. Suppose an attacker captures passport #5 (`VALID`) and replays it after #6 (`INVALID`) has been published. Any store that has seen #6 refuses it. A store that hasn't yet seen #6 accepts #5, but #5 still expires on its own, and #6 overwrites it when it arrives.
+
+<Accordion title="In plain terms" icon="lightbulb">
+Every chain remembers the highest label number it has seen for each project and checker, and refuses anything older or equal. An attacker can't sneak an old "OK" label back in after a newer "problem" label has arrived.
+</Accordion>
+
+## Why no chain domain is bound into the core
+
+A common anti-replay technique binds the destination chain's ID into the signed message. Halflife deliberately **doesn't**:
+
+> Binding a domain would require one signature per destination and destroy the portability the design exists for.
+
+The same 125 signed bytes are verified on Solana, stored there, dispatched over Hyperlane, and decoded on any EVM chain unchanged. Sequence plus high-water marks give replay protection without per-chain signatures.
+
+## Circuit consistency on Solana
+
+The passport PDA is derived from `["passport", circuit_hash, issuer]`, so an account can only ever hold one circuit's passports. `publish` also checks `passport.circuit_hash == parsed.circuit_hash` on update (`CircuitMismatch`) as a defence in depth.

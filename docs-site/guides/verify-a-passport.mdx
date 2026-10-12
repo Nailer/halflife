@@ -1,0 +1,63 @@
+---
+title: "Verify a passport"
+description: "Check a passport's signature, issuer binding, evidence binding, clock bounds, and effective status, off-chain, at any point in time."
+icon: "badge-check"
+---
+
+```bash
+halflife verify <passport.json> [--evidence <evidence.json>] [--at <unix-seconds>]
+```
+
+## What is checked, in order
+
+| # | Check | Failure message |
+|---|---|---|
+| 1 | `issuer_id` (base58) decodes to the same 32 bytes as `core.issuer` | `issuer mismatch: issuer_id does not match the key bound in the signed core` |
+| 2 | `core.issuer` is a valid ed25519 key | `issuer key is not valid` |
+| 3 | The signature verifies over `"halflife-passport-v1" ‖ canonical_bytes` | `signature does not verify` |
+| 4 | *(with `--evidence`)* normalized evidence reproduces `evidence_hash` | `evidence_hash does not match the supplied evidence` |
+| 5 | *(with `--evidence`)* evidence reproduces `circuit_hash` | `circuit_hash does not match the supplied evidence` |
+| 6 | `issued_at ≤ at + 300` and `expires_at > issued_at` | `passport is outside acceptable clock bounds` |
+| 7 | Effective status at `at` | Prints `effective Valid\|Stale\|Invalid` |
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Effective status is `Valid` |
+| `1` | A check failed (error printed) |
+| `2` | Signature and bindings are fine, but the effective status is `Stale` or `Invalid` |
+
+<Accordion title="In plain terms" icon="lightbulb">
+Verify answers three questions. Is this label genuine? Does it match the detailed report? Does it say "go" right now, or at the moment I choose? Exit code 0 means go, 2 means a genuine label that says stop, and 1 means something about the label itself is wrong.
+</Accordion>
+
+## Time travel with `--at`
+
+`--at` evaluates as if the current time were the given Unix timestamp:
+
+```bash
+EXP=$(jq -r '.core.expires_at' out/passport.json)
+halflife verify out/passport.json --at $((EXP - 1))   # effective Valid, exit 0
+halflife verify out/passport.json --at $((EXP + 1))   # effective Stale, exit 2
+```
+
+## Negative tests worth running
+
+<CodeGroup>
+```bash Forged status
+jq '.core.status="VALID" | .core.advisory_count=0' out/vulnerable/passport.json > forged.json
+halflife verify forged.json            # signature does not verify
+```
+
+```bash Mismatched evidence
+halflife verify out/vulnerable/passport.json --evidence out/patched/evidence.json
+# evidence_hash does not match the supplied evidence
+```
+
+```bash Number instead of string
+jq '.core.sequence=1' out/patched/passport.json > bad.json
+halflife verify bad.json
+# u64 must be a JSON string, not a number (float64 loses precision above 2^53)
+```
+</CodeGroup>

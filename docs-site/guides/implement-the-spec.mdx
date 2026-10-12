@@ -1,0 +1,59 @@
+---
+title: "Implement the spec"
+description: "Write a conforming passport encoder, decoder, and verifier in another language, and prove it against the conformance vectors."
+icon: "code-xml"
+---
+
+A conforming implementation must reproduce **every** vector in `fixtures/vectors.json` byte-for-byte. Anything that can't isn't an implementation.
+
+<Accordion title="In plain terms" icon="lightbulb">
+If you want to read or write Halflife passports in another programming language, there's a test file with known-correct examples. Your code has to produce exactly the same bytes and signatures for every example. If it does, it agrees with every other implementation.
+</Accordion>
+
+## Checklist
+
+<Steps>
+  <Step title="Encode the core">
+    125 bytes, fixed-width, **little-endian**, in this exact order: `version u8 · circuit_hash [32] · issuer [32] · sequence u64 · capability u8 · status u8 · issued_at i64 · expires_at i64 · evidence_hash [32] · advisory_count u16`. See the [wire format](/reference/passport-wire-format).
+  </Step>
+  <Step title="Build the preimage">
+    `"halflife-passport-v1"` (20 ASCII bytes) followed by the 125 core bytes, giving 145 bytes.
+  </Step>
+  <Step title="Sign and verify with Ed25519">
+    Pure Ed25519 (RFC 8032), no pre-hashing. It's deterministic, so re-signing a vector must reproduce `signature_hex` exactly.
+  </Step>
+  <Step title="Parse JSON strictly">
+    `sequence`, `issued_at`, and `expires_at` are **strings**. Refuse JSON numbers. Hashes are lowercase hex. Capability is `"C0"`–`"C5"`. Status is `"VALID"` or `"INVALID"` only.
+  </Step>
+  <Step title="Bind the issuer">
+    Reject a passport whose base58 `issuer_id` doesn't decode to the core's `issuer`.
+  </Step>
+  <Step title="Resolve status on the reader's clock">
+    `INVALID` wins. `now >= expires_at` gives `STALE`. Otherwise `VALID`. Reject `issued_at > now + 300` and `expires_at <= issued_at`.
+  </Step>
+  <Step title="Make absence block">
+    Your API must make "no passport" return a blocking result. Taking an optional/nullable and returning `Missing` is the reference pattern. **Any SDK in any language must make the unsafe integration equally hard to write.**
+  </Step>
+  <Step title="Run the vectors, then the negative control">
+    Reproduce all four vectors, then corrupt one (for example, set `sequence` to `"424242"`) and confirm your implementation **rejects** it.
+  </Step>
+</Steps>
+
+## Reference implementations to compare against
+
+| Language | File | Notes |
+|---|---|---|
+| Rust | `crates/halflife-core/src/lib.rs`, `crates/halflife-cli/src/vectors.rs` | Canonical |
+| JavaScript (Node) | `packages/passport-ts/verify-vectors.mjs` | Zero dependencies, written from the spec rather than ported |
+| Solidity | `evm/src/HalflifeDestinationRegistry.sol` (`_decode`) | Decode only, explicit LE→BE reversal |
+| TypeScript (browser) | `apps/control-room/src/LiveRead.tsx` (`decode`) | `DataView` with `littleEndian = true` |
+| Rust (on-chain) | `solana/programs/halflife-passport/src/lib.rs` | `PassportCore::decode`, `Passport::canonical_bytes` |
+
+## Edge cases the vectors pin
+
+| Vector | What it exercises |
+|---|---|
+| `valid_c1_seq1` | Baseline |
+| `invalid_three_advisories` | Status byte 2, non-zero count |
+| `valid_c5_seq7` | Highest tier |
+| `boundary_extremes` | `sequence = u64::MAX`, `issued_at = i64::MIN`, `expires_at = i64::MAX`, `advisory_count = u16::MAX`, `C0`. **Off-by-one and sign bugs live here.** |

@@ -1,0 +1,113 @@
+---
+title: "Scan a project"
+description: "Produce signed evidence and a passport for your own Rust project: write halflife.toml, choose live or offline advisories, set disclosure and TTL, and read the result."
+icon: "folder-search"
+---
+
+<Steps>
+  <Step title="Build the CLI and create a key">
+    ```bash
+    cargo build --release -p halflife-cli
+    ./target/release/halflife keygen --out issuer.json
+    ```
+  </Step>
+
+  <Step title="Describe the subject">
+    Create `halflife.toml` next to your `Cargo.lock`:
+
+    ```toml halflife.toml
+    [subject]
+    name = "my-private-payments-circuit"
+    repository = "https://github.com/acme/private-payments"
+    commit = "3f2a9c1e…"          # the exact commit you're attesting
+    proof_system = "halo2"        # free text: halo2, groth16, plonk, noir, none, …
+    ```
+
+    `repository`, `commit`, and `proof_system` feed into `circuit_hash`. `name` doesn't.
+
+    <Accordion title="In plain terms" icon="lightbulb">
+    This small file tells Halflife what it's looking at: a friendly name, where the code lives, which exact version, and what kind of proof system it uses. It's the cover page of the report.
+    </Accordion>
+  </Step>
+
+  <Step title="Scan">
+    <CodeGroup>
+    ```bash Live OSV (default)
+    ./target/release/halflife scan . --issuer issuer.json --out out/
+    ```
+
+    ```bash Offline snapshot
+    ./target/release/halflife scan . --issuer issuer.json --offline \
+      --snapshot fixtures/osv-snapshot.json --out out/
+    ```
+
+    ```bash CI gate (exit 2 on findings)
+    ./target/release/halflife scan . --issuer issuer.json --out out/ --deny
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Read the result">
+    ```text Illustrative output
+    closure   <N> packages (<M> from registry)
+    advisory  osv.dev/v1/querybatch
+    circuit   <64 hex>
+    evidence  <64 hex>
+    issuer    <base58 issuer id>
+    capability C1  seq 1  disclosure Embargoed
+    findings  <crate>@<version>  <advisory id>, <advisory id>
+    status    Invalid
+    written   out
+    ```
+
+    `N` counts every package in the lockfile. `M` counts those from a registry, which are the only ones that can match an advisory. A clean run prints `findings  none`.
+
+    `out/evidence.json` holds the full closure and every hit. `out/passport.json` holds the signed core.
+  </Step>
+
+  <Step title="Verify it">
+    ```bash
+    ./target/release/halflife verify out/passport.json --evidence out/evidence.json
+    ```
+  </Step>
+</Steps>
+
+## Options that matter
+
+| Flag | Default | When to change it |
+|---|---|---|
+| `--issuer <path>` | `issuer.json` | Point at your issuer key |
+| `--offline` | off | Reproducible runs, air-gapped CI, demos |
+| `--snapshot <path>` | `fixtures/osv-snapshot.json` | Only meaningful with `--offline`, and **relative to the current directory** |
+| `--ttl <secs>` | `86400` (24 h) | Shorter for faster containment, longer for fewer renewals |
+| `--sequence <n>` | `1` | **Must increase** for each new passport for the same `(circuit, issuer)` |
+| `--disclosure public\|embargoed` | `embargoed` | `public` once the finding may be discussed |
+| `--out <dir>` | `<target>/out` | Where to write `evidence.json` and `passport.json` |
+| `--deny` | off | Exit **2** if the closure carries any advisory |
+
+<Warning>
+**Re-issuing?** Increment `--sequence`. The Solana registry and every destination reject a sequence at or below the stored high-water mark (`SequenceNotIncreasing`).
+</Warning>
+
+## Reading the status
+
+| `status` | Meaning | Next step |
+|---|---|---|
+| `Valid` | No advisory matched any registry package | Publish, and renew before `expires_at` |
+| `Invalid` | At least one advisory matched | Inspect `findings`, upgrade or replace the crate, re-scan with `--sequence n+1` |
+
+<Accordion title="In plain terms" icon="lightbulb">
+If the result says **Valid**, none of your libraries are on a known-problem list today. If it says **Invalid**, the lines starting with `findings` tell you which library and which public advisory. Usually the fix is to upgrade that library and run the scan again.
+</Accordion>
+
+## Triage a noisy result
+
+C1 counts **every** advisory: dev and test dependencies, "unmaintained" notices, and unreachable code. To triage:
+
+1. List hits: `jq '.dependencies[] | select(.advisories | length > 0) | "\(.name)@\(.version) \(.advisories)"' out/evidence.json`
+2. Check which crates pull each one in: `cargo tree -i <crate>@<version>`.
+3. Upgrade, replace, or isolate test-only tooling into a separate workspace (this is how Halflife plans to fix its own [self-passport](/guides/self-passport)).
+
+## Scanning a workspace subset
+
+The scan reads **the lockfile in the target directory**. For a large workspace where only one crate is the circuit, give that crate its own workspace and lockfile, or accept the full workspace closure as the attested build.

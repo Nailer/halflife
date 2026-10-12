@@ -1,0 +1,54 @@
+---
+title: "Measurements"
+description: "Every number Halflife publishes, what it includes, and the exact command that reproduces it."
+icon: "gauge"
+---
+
+**Measured, not claimed.** Every figure here is reproducible from a committed script, and every timing comes from an observed on-chain event (commitments D2 and D7).
+
+<Accordion title="In plain terms" icon="lightbulb">
+Every number Halflife quotes can be re-measured by anyone with one command. Nothing is estimated or copied from marketing material.
+</Accordion>
+
+## Compute cost on Solana
+
+| Operation | Compute units | Reproduce |
+|---|---|---|
+| **Consumer passport check** | **1,520 CU** | `cargo run --release -p halflife-bench` |
+| Publish a signed passport | 11,550 CU | same |
+| Register an issuer | 7,406 CU | same |
+
+1,520 CU is **0.76%** of a default 200,000 CU transaction budget and **0.0015%** of the 100M CU block limit.
+
+**What's included:** account deserialization and instruction dispatch, taken from the runtime's own `consumed N of M compute units` log. Bracketing only the comparisons would give a smaller number nobody could reproduce in practice.
+
+**Environment:** LiteSVM 0.6 against the SBF artifacts from `anchor build`.
+
+## Containment time on devnet
+
+| Scenario | Containment | On-chain writes | Record |
+|---|---|---|---|
+| Dependency compromise | **4 s** | Invalidation published | `exercises/dependency-compromise-1790859361.json` |
+| Relayer censorship | **41 s** | **Exactly 1** (the baseline). Nothing published. | `exercises/relayer-censorship-1790859373.json` |
+
+The censorship figure is bounded by the drill's **45 s TTL**. Containment under censorship is at most your TTL plus one slot. Reproduce with `halflife-exercise run …` and re-check with `halflife-exercise verify …`.
+
+## Fleet and self-assessment
+
+| Figure | Value | Reproduce |
+|---|---|---|
+| Registered systems | 8 (6 published crates + 2 fixtures) | `verify-all.sh` §5 |
+| Affected by `halo2_gadgets@0.4.0` (operator) | ≥ 3 | `halflife impact halo2_gadgets@0.4.0 --operator` |
+| Affected by `halo2_gadgets@0.5.0` | 0 | `halflife impact halo2_gadgets@0.5.0 --operator` |
+| Halflife's own closure | 653 packages, 15 with advisories → `INVALID` | `./scripts/self-passport.sh` |
+| Full verification | 39 checks | `./scripts/verify-all.sh` |
+| Groth16 verifier workspace (external, 12 Oct 2026) | 14 packages flagged | C1 false-positive example |
+
+## Format conformance
+
+| Implementation | Vectors | Reproduce |
+|---|---|---|
+| Rust | 4/4 | `halflife vectors verify` |
+| Node (independent) | 4/4 | `node packages/passport-ts/verify-vectors.mjs` |
+| Solidity | 4/4 decoded | `forge test --match-contract ConformanceTest` |
+| Negative control | Tampered vector rejected | `scripts/ci-negative-control.sh` |

@@ -1,0 +1,77 @@
+---
+title: "Consumer policy"
+description: "Halflife publishes state; it never decides what a program requires. Each consumer declares its own circuit, issuers, and minimum capability."
+icon: "sliders-horizontal"
+---
+
+**Halflife publishes state. It doesn't set policy.** A consumer, meaning any program or contract that gates work on a passport, declares its own requirements:
+
+```text
+require status_at(now) == VALID
+require capability     >= C4
+require circuit_hash   == expected
+require issuer         in {trusted set}
+```
+
+Keeping policy at the consumer is what stops Halflife from becoming a centralized security oracle. It's the same reasoning Hyperlane applies to Interchain Security Modules, where the destination application chooses its own verification rules instead of inheriting the protocol's.
+
+<Accordion title="In plain terms" icon="lightbulb">
+Halflife provides the information. Each project decides for itself what rules to apply, such as which checkers it trusts and how thorough a check it requires. Nobody at Halflife can force a project to stop or to keep going. The project's own rules decide.
+</Accordion>
+
+## The reference decision function
+
+`halflife_core::decide` is the canonical decision procedure. It takes an `Option`, because absence isn't permission.
+
+```rust
+pub struct Policy {
+    pub expected_circuit: [u8; 32],
+    pub min_capability: Capability,
+    pub trusted_issuers: Vec<IssuerRecord>,
+}
+
+pub fn decide(passport: Option<&PassportCore>, policy: &Policy, now: i64) -> Decision
+```
+
+Checks run in this order. The first failure returns.
+
+| # | Check | Block reason |
+|---|---|---|
+| 1 | Passport present | `Missing` |
+| 2 | `circuit_hash == expected_circuit` | `WrongCircuit` |
+| 3 | `within_clock_bounds(now)` | `ClockOutOfBounds` |
+| 4 | Issuer in trusted set **and** `accepts(issued_at, now)` | `UntrustedIssuer` |
+| 5 | `capability >= min_capability` | `InsufficientCapability` |
+| 6 | `status_at(now)` is `Valid` | `Stale` or `Invalid` |
+
+If every check passes, the result is `Decision::Allow`.
+
+<Accordion title="In plain terms" icon="lightbulb">
+The program asks, in order: Is there a label? Is it for the right project? Is the date believable? Is it signed by someone I trust who hasn't been withdrawn? Was the check thorough enough? Is it currently OK? Any "no" means stop.
+</Accordion>
+
+## Policy in each runtime
+
+<Tabs>
+  <Tab title="Solana (reference consumer)">
+    `halflife_consumer::submit_proof(expected_circuit: [u8; 32], min_capability: u8)` takes the policy as **instruction arguments**. The trusted issuer is implied by **which passport account you pass**, because the PDA is derived from `(circuit_hash, issuer)`. Your own program would normally hard-code or store these values rather than accept them from the caller.
+  </Tab>
+  <Tab title="EVM (reference consumer)">
+    `HalflifeConsumer` fixes the policy as **immutables** at construction: `registry`, `circuitHash`, `issuer`, and `minCapability`.
+  </Tab>
+  <Tab title="Off-chain (Rust)">
+    Build a `Policy` and call `decide`. `trusted_issuers` carries full `IssuerRecord` lifecycles, so revocation is honoured.
+  </Tab>
+</Tabs>
+
+<Warning>
+**Pin the passport account in your own program.** If your program accepts any `Passport` account the caller chooses, a caller could pass a passport for a different issuer that you don't trust. Derive or check the expected PDA (`["passport", expected_circuit, trusted_issuer]` under the passport program ID) inside your program. See [Integrate a Solana program](/guides/integrate-solana-program).
+</Warning>
+
+## Quorum
+
+For *n*-of-*m* issuers, pass *m* passport accounts and count how many resolve `VALID` and meet your capability floor. There's no aggregate signature in v1, by design: the loop is cheap, and the trust set stays explicit.
+
+## What not to use as policy input
+
+`advisory_count` can't distinguish three hits on one advisory from three separate advisories (limit **L4**). It's a signal for dashboards, **never** a policy input. Use `status`.

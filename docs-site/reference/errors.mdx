@@ -1,0 +1,82 @@
+---
+title: "Errors"
+description: "Every error Halflife can return across the CLI, the Solana programs, and the EVM contracts, with causes and fixes."
+icon: "circle-alert"
+---
+
+<Accordion title="In plain terms" icon="lightbulb">
+When something is refused, Halflife says exactly why. Use this page to look up any error message: what caused it and what to do about it.
+</Accordion>
+
+## `halflife_passport`
+
+Anchor custom errors start at **6000**, in declaration order.
+
+| Code | Name | Cause | Fix |
+|---|---|---|---|
+| 6000 | `UnsupportedVersion` | Core byte 0 ≠ 1 | Re-encode with v1 |
+| 6001 | `UnknownStatus` | Status byte not 1 or 2 | Only `VALID`/`INVALID` are issuable |
+| 6002 | `UnknownCapability` | Capability byte > 5 | Use tier 0–5 |
+| 6003 | `IssuerMismatch` | Issuer account ≠ core's issuer | Pass `["issuer", core.issuer]` |
+| 6004 | `IssuerRevoked` | Publishing under a revoked issuer | Register a new key |
+| 6005 | `AlreadyRevoked` | Revoking twice | — |
+| 6006 | `MissingSignatureInstruction` | Instruction 0 isn't Ed25519 | Prepend the Ed25519 verify instruction |
+| 6007 | `MalformedSignatureInstruction` | Short data or more than one signature | Exactly one signature per Ed25519 instruction |
+| 6008 | `SignerMismatch` | Ed25519 pubkey ≠ expected | Sign with the issuer key |
+| 6009 | `SignedMessageMismatch` | Signed message ≠ domain ‖ core (or trailing bytes, or a replayed registration proof) | Sign the exact preimage, and bind your own authority |
+| 6010 | `IssuedInFuture` | `issued_at > now + 300` | Fix the issuer's clock |
+| 6011 | `ExpiryBeforeIssuance` | `expires_at ≤ issued_at` | Positive TTL |
+| 6012 | `IssuedBeforeRegistration` | `issued_at < registered_at` | Re-sign after registering |
+| 6013 | `SequenceNotIncreasing` | Replay or stale sequence | Use `sequence > stored` |
+| 6014 | `CircuitMismatch` | Account holds a different circuit | Derive the PDA correctly |
+| 6015 | `MailboxMismatch` | `mailbox_program` ≠ route mailbox | Pass the route's mailbox |
+| 6016 | `NotAdmin` | Non-admin `set_route` / `set_admin` | Sign as admin |
+| 6017 | `UnknownMailbox` | Mailbox not allowlisted | Use a known Hyperlane mailbox (allowlist changes need an upgrade) |
+
+## `halflife_consumer`
+
+| Code | Name | Meaning |
+|---|---|---|
+| 6000 | `WrongCircuit` | Passport is for a different circuit |
+| 6001 | `InsufficientCapability` | Tier below the requirement |
+| 6002 | `PassportStale` | **Evidence aged out. Not a finding.** Renew the passport. |
+| 6003 | `PassportInvalid` | An accepted issuer reported a problem. Investigate the finding. |
+
+## EVM
+
+| Error | Contract | Meaning |
+|---|---|---|
+| `NotMailbox()` | Registry | `handle` called by someone other than the mailbox |
+| `UnexpectedOrigin(uint32)` | Registry | Wrong origin domain |
+| `UnexpectedSender(bytes32)` | Registry | Sender isn't the Solana registry |
+| `BadMessageLength(uint256)` | Registry | Body ≠ 125 bytes |
+| `UnsupportedVersion(uint8)` | Registry | Version ≠ 1 |
+| `UnknownStatus(uint8)` | Registry | Status not 1 or 2 |
+| `SequenceNotIncreasing(uint64,uint64)` | Registry | Replay or redelivery |
+| `IsmRequired()` | Registry | Zero ISM |
+| `NullIsmRefused()` | Registry | `Types.NULL` ISM |
+| `NotOwner()` | Registry | Non-owner `setIsm` |
+| `NoPassport()` | Consumer | Never delivered (absence is not permission) |
+| `PassportStale()` | Consumer | Aged out, not a finding |
+| `PassportInvalid()` | Consumer | Issuer reported a problem |
+| `InsufficientCapability(uint8,uint8)` | Consumer | `(have, need)` |
+| `IsmRejected()` | MockMailbox | Local ISM `verify` returned false |
+
+## CLI messages
+
+| Message | Cause |
+|---|---|
+| `… already exists — refusing to overwrite an issuer key` | `keygen` target exists |
+| `expected a 64-byte Solana keypair, found N bytes` | Wrong key file |
+| `keypair is inconsistent: public half does not match the secret half` | Corrupted key file |
+| `reading …/halflife.toml` / `parsing …` | Missing or invalid manifest |
+| `reading lockfile …` | Missing `Cargo.lock` |
+| `OSV batch query failed — retry, or use --offline` | Network or OSV issue |
+| `expected name@version, e.g. halo2_gadgets@0.4.0 — got …` | Bad `impact` target |
+| `issuer mismatch: issuer_id does not match the key bound in the signed core` | Forged or mismatched envelope |
+| `signature does not verify` | Tampered core or wrong key |
+| `evidence_hash does not match the supplied evidence` | Wrong or modified evidence |
+| `circuit_hash does not match the supplied evidence` | Evidence for a different build |
+| `passport is outside acceptable clock bounds` | Future-dated or bad expiry |
+| `u64 must be a JSON string, not a number …` | Non-conforming JSON |
+| `<vector>: canonical encoding differs` | Implementation bug or format drift |

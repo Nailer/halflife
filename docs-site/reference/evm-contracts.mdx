@@ -1,0 +1,87 @@
+---
+title: "EVM contracts"
+description: "ABI-level reference for HalflifeDestinationRegistry, HalflifeConsumer, and the local test doubles."
+icon: "hexagon"
+---
+
+Solidity `^0.8.24`, Apache-2.0.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the technical list of functions, events, and errors for the contracts on Ethereum-style chains.
+</Accordion>
+
+## `HalflifeDestinationRegistry`
+
+Implements `IMessageRecipient` and `ISpecifiesInterchainSecurityModule`.
+
+### Constructor
+
+```solidity
+constructor(address _mailbox, uint32 _originDomain, bytes32 _originSender, IInterchainSecurityModule _ism)
+```
+
+The deployer becomes `owner`. The ISM must be non-zero and non-`NULL`.
+
+### State
+
+| Name | Type |
+|---|---|
+| `mailbox` | `address immutable` |
+| `originDomain` | `uint32 immutable` |
+| `originSender` | `bytes32 immutable` |
+| `ism` | `IInterchainSecurityModule` |
+| `owner` | `address` |
+
+### Functions
+
+| Function | Mutability | Description |
+|---|---|---|
+| `handle(uint32 origin, bytes32 sender, bytes message)` | payable | Mailbox-only. Decode, enforce sequence, store |
+| `statusAt(bytes32 circuit, bytes32 issuer, int64 ts)` | view | `Effective` at `ts` |
+| `statusNow(bytes32 circuit, bytes32 issuer)` | view | `Effective` at `block.timestamp` |
+| `get(bytes32 circuit, bytes32 issuer)` | view | `Passport` struct |
+| `key(bytes32 circuit, bytes32 issuer)` | pure | `keccak256(abi.encodePacked(circuit, issuer))` |
+| `setIsm(IInterchainSecurityModule)` | — | Owner-only, same guards as the constructor |
+| `interchainSecurityModule()` | view | Current ISM |
+| `moduleTypeOf()` | view | `ism.moduleType()` |
+
+### Types
+
+```solidity
+enum Effective { Missing, Valid, Stale, Invalid }
+
+struct Passport {
+    bytes32 circuitHash; bytes32 issuer; uint64 sequence;
+    uint8 capability; uint8 status; int64 issuedAt; int64 expiresAt;
+    bytes32 evidenceHash; uint16 advisoryCount; bool present;
+}
+```
+
+### Events
+
+`PassportReceived(bytes32 indexed circuitHash, bytes32 indexed issuer, uint64 sequence, uint8 status)` · `IsmChanged(address indexed previous, address indexed current)`
+
+### Errors
+
+`NotMailbox()` · `UnexpectedOrigin(uint32)` · `UnexpectedSender(bytes32)` · `BadMessageLength(uint256)` · `UnsupportedVersion(uint8)` · `UnknownStatus(uint8)` · `SequenceNotIncreasing(uint64 incoming, uint64 stored)` · `IsmRequired()` · `NullIsmRefused()` · `NotOwner()`
+
+## `HalflifeConsumer`
+
+```solidity
+constructor(Registry _registry, bytes32 _circuitHash, bytes32 _issuer, uint8 _minCapability)
+function submitProof() external          // emits Proceeded(msg.sender)
+function wouldProceed() external view returns (bool)
+```
+
+Errors: `NoPassport()` · `PassportStale()` · `PassportInvalid()` · `InsufficientCapability(uint8 have, uint8 need)`
+
+## Local test doubles (not for production)
+
+| Contract | Purpose |
+|---|---|
+| `MockMailbox` | `deliver(recipient, origin, sender, message)`: asks the recipient for its ISM, reverts `IsmRejected()` if `verify` fails, then calls `handle` and emits `Delivered` |
+| `LocalAggregationIsm` | Reports `Types.AGGREGATION`, so the destination's NULL guard is genuinely satisfied rather than bypassed. **`verify` always returns true.** Local runs only. |
+
+## Interfaces
+
+`IInterchainSecurityModule` mirrors Hyperlane's `Types` enum: `UNUSED, ROUTING, AGGREGATION, LEGACY_MULTISIG, MERKLE_ROOT_MULTISIG, MESSAGE_ID_MULTISIG, NULL, CCIP_READ, ARB_L2_TO_L1, WEIGHTED_MERKLE_ROOT_MULTISIG, WEIGHTED_MESSAGE_ID_MULTISIG, OP_L2_TO_L1, POLYMER`.

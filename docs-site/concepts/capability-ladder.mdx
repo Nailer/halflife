@@ -1,0 +1,77 @@
+---
+title: "Capability ladder"
+description: "A passport records what was executed, not how confident anyone feels. The C0–C5 ladder makes that claim falsifiable."
+icon: "signal"
+---
+
+A passport's `capability` field records **which tier of verification was actually executed**. It's a statement about method, which can be checked, not about safety, which can't.
+
+| Tier | Name | What was actually done |
+|---|---|---|
+| **C0** | None | No automated verification. |
+| **C1** | Structural | Dependency closure resolved, and every registry package matched against published advisories. |
+| **C2** | Constraint consistency | The circuit's own constraint system checked for internal consistency. |
+| **C3** | Differential | Behaviour compared against a known-good reference implementation. |
+| **C4** | Adversarial soundness | Active search for inputs that satisfy the constraint system but violate the intended statement. |
+| **C5** | Independent methodology | Re-verified under a methodology newer than the one that last cleared it. |
+
+<Accordion title="In plain terms" icon="lightbulb">
+Think of it as levels of inspection for a car. **C0**: nobody looked. **C1**: someone checked whether any of its parts are on a public recall list. **C2**: someone checked that the parts fit together correctly. **C3**: someone compared it with a car known to be good. **C4**: someone actively tried to break it. **C5**: someone re-inspected it with newer methods than the last inspector had. The passport records which level was *actually done*, never "this car is safe".
+</Accordion>
+
+## Halflife emits C1 only
+
+<Warning>
+**v0.1 emits C1 only.** Nothing in the repository performs constraint analysis yet, and claiming a higher tier would be exactly the failure this project exists to expose. `Capability::C1` is hardcoded in the scan path (commitment **D1**: no tier is claimed without a published measurement).
+</Warning>
+
+C1 is **deterministic and model-free**. It runs offline against a pinned snapshot, and anyone can reproduce it (commitment **D3**).
+
+## Why a ladder and not a score
+
+A decay percentage ("this circuit is 73% fresh") can't be defended. It implies a measurable rate of decay that nobody can derive. A ladder makes the claim **falsifiable** instead:
+
+```text
+circuit requires  C4
+passport asserts  C1
+                  -> INSUFFICIENT
+```
+
+That's a comparison a program can make and a human can argue with.
+
+<Accordion title="In plain terms" icon="lightbulb">
+A percentage like "73% safe" sounds precise but means nothing, because nobody can measure it. Saying "this level of check was done, and you need that level" is simple and honest. A program can compare two numbers, and a person can disagree with the requirement.
+</Accordion>
+
+## How consumers use it
+
+Each consumer declares a minimum tier in its own policy. The comparison is a single integer comparison:
+
+<CodeGroup>
+```rust Solana consumer
+require!(
+    passport.capability >= min_capability,
+    ConsumerError::InsufficientCapability
+);
+```
+
+```solidity EVM consumer
+if (p.capability < minCapability) {
+    revert InsufficientCapability(p.capability, minCapability);
+}
+```
+
+```rust halflife-core
+if p.capability < policy.min_capability {
+    return Decision::Block(Block::InsufficientCapability);
+}
+```
+</CodeGroup>
+
+`Capability` derives `PartialOrd`/`Ord`, so `C0 < C1 < … < C5`. On the wire it's a single byte from `0` to `5`. The Solana decoder rejects `> 5` with `UnknownCapability`.
+
+## What "half-life" means here
+
+It doesn't mean "audits expire after N days." It means that **a verification's evidentiary strength decays when the analysis frontier advances past the methodology that produced it.** The `expires_at` field is the operational expression of that: it forces renewal, and renewal is the moment a stronger tier can be asserted.
+
+A C1 passport doesn't mean a circuit is broken. It means nothing above C1 has been asserted about it, and a consumer that requires C4 should say so.

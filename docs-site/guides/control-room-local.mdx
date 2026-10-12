@@ -1,0 +1,72 @@
+---
+title: "Run the control room"
+description: "Regenerate the public and operator exports from your registry, run the UI locally, and deploy it to Vercel with an anonymous-access check."
+icon: "monitor"
+---
+
+<Steps>
+  <Step title="Populate a registry">
+    ```bash
+    for f in fixtures/fleet/*/ fixtures/orchard-vulnerable fixtures/orchard-patched; do
+      ./target/release/halflife register "${f%/}" --offline --disclosure public
+    done
+    ```
+  </Step>
+  <Step title="Export both audiences">
+    ```bash
+    ./target/release/halflife export \
+      --out apps/control-room/public/state.json
+    ./target/release/halflife export --operator \
+      --out apps/control-room/public/state.operator.json
+    ```
+    ```text
+    exported <n> circuits · <n> dependencies · <n> exercises  (PUBLIC view)
+    written  apps/control-room/public/state.json
+    ```
+  </Step>
+  <Step title="Run the dev server">
+    ```bash
+    cd apps/control-room
+    npm install
+    npm run dev
+    ```
+    Open the URL Vite prints (normally `http://localhost:5173`). The landing page is at `/`, and the app views at `/#app/overview`.
+  </Step>
+  <Step title="Build for production">
+    ```bash
+    npm run build      # tsc -b && vite build → dist/
+    npm run preview
+    ```
+  </Step>
+</Steps>
+
+<Accordion title="In plain terms" icon="lightbulb">
+The dashboard doesn't calculate anything itself. It just displays two files the command-line tool produces: one public and one for operators. Make those files, then start the website on your computer.
+</Accordion>
+
+## Deploy
+
+```bash
+./scripts/deploy-ui.sh
+```
+
+The script:
+
+1. Regenerates **both** exports from the live registry, so the deployed site can't drift from what the CLI believes.
+2. Deploys from `apps/control-room` (not `dist/`, which is wiped on every build and would destroy the `.vercel` link).
+3. Asserts `/`, `/state.json`, and `/state.operator.json` return **HTTP 200 anonymously**. New Vercel projects can default to SSO Deployment Protection, which returns 403 to signed-out visitors.
+
+<Note>
+The script targets the original author's Vercel scope (`--scope pleasants-projects`). Change that to your own scope, or run `vercel deploy --prod` yourself.
+</Note>
+
+## Customising
+
+| Want to change | File |
+|---|---|
+| Views and tour steps | `src/App.tsx` |
+| Landing page | `src/Landing.tsx`, `src/landing.css` |
+| Status colours and theme | `src/style.css`, `src/theme.ts` |
+| Live devnet read | `src/LiveRead.tsx` (RPC and program ID) |
+| Browser lockfile check | `src/views/Check.tsx` |
+| Data shapes | `src/types.ts` (must match `halflife export`) |

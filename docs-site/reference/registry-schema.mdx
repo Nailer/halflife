@@ -1,0 +1,69 @@
+---
+title: "Registry schema"
+description: "Column-level reference for the local SQLite fleet registry (halflife.db)."
+icon: "table"
+---
+
+<Accordion title="In plain terms" icon="lightbulb">
+The local notebook of scanned projects is a single database file with four tables: projects, the libraries each uses, the problems found, and the labels issued.
+</Accordion>
+
+## `circuits`
+
+| Column | Type | Notes |
+|---|---|---|
+| `circuit_hash` | TEXT PK | Lowercase hex |
+| `name` | TEXT | |
+| `repository` | TEXT | |
+| `commit_hash` | TEXT | |
+| `proof_system` | TEXT | |
+| `registered_at` | INTEGER | Unix seconds, set on first insert |
+
+## `dependencies`
+
+| Column | Type | Notes |
+|---|---|---|
+| `circuit_hash` | TEXT FK → circuits, `ON DELETE CASCADE` | |
+| `name`, `version` | TEXT | |
+| `checksum` | TEXT NULL | |
+| PK | `(circuit_hash, name, version)` | |
+| Index | `idx_dependencies_reverse (name, version)` | The reverse index |
+
+## `advisory_hits`
+
+| Column | Type |
+|---|---|
+| `circuit_hash` | TEXT FK, `ON DELETE CASCADE` |
+| `dep_name`, `dep_version`, `advisory_id` | TEXT |
+| PK | `(circuit_hash, dep_name, dep_version, advisory_id)` |
+| Index | `idx_advisory_hits_id (advisory_id)` |
+
+## `passports`
+
+| Column | Type | Notes |
+|---|---|---|
+| `circuit_hash`, `issuer` | TEXT | `issuer` is base58 |
+| `sequence` | INTEGER | Stored as i64 |
+| `status` | TEXT | `VALID` / `INVALID` |
+| `capability` | INTEGER | 0–5 |
+| `issued_at`, `expires_at` | INTEGER | |
+| `disclosure` | TEXT | `PUBLIC` / `EMBARGOED` |
+| `passport_json` | TEXT | Full `SignedPassport` |
+| `evidence_json` | TEXT NULL | **NULL while embargoed** |
+| PK | `(circuit_hash, issuer, sequence)` | Append-only history |
+
+## Useful queries
+
+```sql
+-- Every circuit reaching a vulnerable version
+SELECT c.name, c.circuit_hash
+FROM dependencies d JOIN circuits c USING (circuit_hash)
+WHERE d.name = 'halo2_gadgets' AND d.version = '0.4.0';
+
+-- Every circuit touched by an advisory
+SELECT DISTINCT circuit_hash FROM advisory_hits WHERE advisory_id = 'GHSA-ww9q-8r59-xv46';
+```
+
+<Warning>
+Direct SQL bypasses the audience model. Treat `halflife.db` as **operator-only** data, because it can contain embargoed findings.
+</Warning>

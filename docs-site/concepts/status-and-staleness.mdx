@@ -1,0 +1,158 @@
+---
+title: "Status and staleness"
+description: "Only VALID and INVALID can be signed. STALE is derived by the reader against its own clock. This asymmetry is the system's central safety property."
+icon: "clock"
+---
+
+## Issued status vs effective status
+
+A passport **asserts** one of two statuses at issuance. A reader **resolves** one of three effective statuses at read time. A consumer may also find no passport at all.
+
+| Kind | Values | Who decides |
+|---|---|---|
+| Issued (`Status`) | `VALID`, `INVALID` | The issuer, inside the signed core |
+| Effective (`EffectiveStatus`) | `VALID`, `STALE`, `INVALID` | The **reader**, using its own clock |
+| Absence | `Missing` / `NONE` | The reader. No passport means block. |
+
+## The resolution rule
+
+```text
+INVALID                       -> INVALID   (at any time)
+VALID and now >= expires_at   -> STALE
+VALID and now <  expires_at   -> VALID
+```
+
+The order matters. **An explicit `INVALID` always wins**, regardless of the clock. An expired `VALID` degrades to `STALE` and never stays `VALID`.
+
+<CodeGroup>
+```rust Rust (halflife-core)
+pub fn status_at(&self, now: i64) -> EffectiveStatus {
+    match self.status {
+        Status::Invalid => EffectiveStatus::Invalid,
+        Status::Valid if now >= self.expires_at => EffectiveStatus::Stale,
+        Status::Valid => EffectiveStatus::Valid,
+    }
+}
+```
+
+```rust Solana (halflife-passport)
+pub fn effective(&self, now: i64) -> Effective {
+    if self.status == STATUS_INVALID {
+        Effective::Invalid
+    } else if now >= self.expires_at {
+        Effective::Stale
+    } else {
+        Effective::Valid
+    }
+}
+```
+
+```solidity EVM (HalflifeDestinationRegistry)
+function statusAt(bytes32 circuitHash, bytes32 issuer, int64 timestamp)
+    public view returns (Effective)
+{
+    Passport storage p = _passports[key(circuitHash, issuer)];
+    if (!p.present) return Effective.Missing;
+    if (p.status == STATUS_INVALID) return Effective.Invalid;
+    if (timestamp >= p.expiresAt) return Effective.Stale;
+    return Effective.Valid;
+}
+```
+
+```ts Browser (control room LiveRead)
+function effective(d: Decoded, nowSecs: bigint) {
+  if (d.status === 2) return "INVALID";
+  if (nowSecs >= d.expiresAt) return "STALE";
+  return "VALID";
+}
+```
+</CodeGroup>
+
+The same rule is implemented independently in four runtimes.
+
+<Accordion title="In plain terms" icon="lightbulb">
+The checker can only write "OK" or "problem" on the label. Whether the label is *out of date* is something each reader works out for themselves by looking at their own clock. A "problem" label always means stop. An "OK" label means go only until its expiry time, and after that it means stop.
+</Accordion>
+
+## Why `STALE` can't be issued
+
+<Note>
+**A consumer that stops receiving updates blocks rather than continuing to trust the last good state.**
+</Note>
+
+If `STALE` were a status an issuer could sign, freshness would be something a passport *claims*. Instead it's something a reader *computes*. Three consequences follow:
+
+1. **Suppression is fail-safe.** A censoring relayer, a partitioned network, or a failed renewal job can't hold a circuit open. Withholding delivery produces the safe outcome.
+2. **Delivery isn't a trusted dependency.** The inverse design, where a passport stays `VALID` until an explicit invalidation arrives, would make every relayer a trusted party. Halflife doesn't.
+3. **Expiry and the ISM defend different things.** On a destination chain, the interchain security module defends against **forged** state. Expiry defends against **absent** state. Neither covers the other, and neither needs to.
+
+In the type system, `Status` has **no `Stale` variant** (commitment I2). The Solana program's decoder rejects any status byte other than `1` or `2` with `UnknownStatus`, and so does the EVM decoder.
+
+<Accordion title="In plain terms" icon="lightbulb">
+If a label could say "still fresh", an attacker who kept old labels in circulation could keep a broken system running. Because freshness is always worked out from the reader's own clock, cutting off updates can only make things stop, never keep them going.
+</Accordion>
+
+## `STALE` is not `INVALID`
+
+<Warning>
+**Staleness isn't a finding and must never be rendered as one** (commitment I3).
+</Warning>
+
+| | `STALE` | `INVALID` |
+|---|---|---|
+| Means | Evidence aged out. No current claim either way. | An accepted issuer reported a problem. |
+| Typical cause | Renewal missed, relayer down, embargo in progress | Advisory matched in the closure |
+| Consumer action | Block | Block |
+| Operator action | Investigate delivery or renewal | Investigate the finding |
+| Control-room colour | **Amber** | **Red** |
+| Solana error | `PassportStale` (6002) | `PassportInvalid` (6003) |
+| EVM error | `PassportStale()` | `PassportInvalid()` |
+
+The errors are distinct on purpose. Collapsing them would make every delivery hiccup look like a vulnerability, and every vulnerability look routine.
+
+<Accordion title="In plain terms" icon="lightbulb">
+Both amber and red stop the system, but they mean different things. Red says "someone found something wrong." Amber says "we haven't heard that things are OK recently." If both looked the same, people would either panic every time a message was late or start ignoring real problems.
+</Accordion>
+
+## Absence is not permission
+
+A consumer that finds **no passport** for a circuit it depends on must block, exactly as if it found a stale one (commitment I4).
+
+The unsafe integration, *"check the passport if one exists"*, inverts the invariant and hands a free pass to anyone able to prevent registration. Every reference implementation makes that mistake hard to write:
+
+| Runtime | How absence blocks |
+|---|---|
+| Rust | `decide(passport: Option<&PassportCore>, …)` returns `Block::Missing` for `None` |
+| Solana consumer | The passport is a required `Account<Passport>`. Anchor's account resolution fails first and the transaction aborts. |
+| EVM consumer | `if (!p.present) revert NoPassport();` |
+| Registry / export | A registered circuit with no passport is reported as `NONE`, never as healthy |
+
+<Accordion title="In plain terms" icon="lightbulb">
+"No label" never means "go." If it did, an attacker could simply stop a label from ever being created and the system would run unchecked. So a missing label is treated exactly like an expired one: stop.
+</Accordion>
+
+## Clock bounds
+
+Two rules protect the clock fields:
+
+- **Future issuance is rejected.** A passport whose `issued_at` is more than `MAX_CLOCK_SKEW_SECS` (**300 s**) beyond the reader's clock is rejected outright. Without that bound, a compromised issuer could mint a claim timed to outlive its own revocation.
+- **Expiry must follow issuance.** `expires_at` must be strictly greater than `issued_at`.
+
+```rust
+pub fn within_clock_bounds(&self, now: i64) -> bool {
+    self.issued_at <= now.saturating_add(MAX_CLOCK_SKEW_SECS)
+        && self.expires_at > self.issued_at
+}
+```
+
+## Choosing a TTL
+
+The CLI default passport lifetime (`--ttl`) is **86,400 s (24 h)**. Fire drills use **45 s** so the censorship scenario completes quickly.
+
+| Shorter TTL | Longer TTL |
+|---|---|
+| Faster containment under censorship | Fewer renewals, lower cost |
+| More renewals required | A longer window where silence is tolerated |
+| Staleness more common, so it carries less signal | Staleness rarer, so it's more conspicuous |
+
+There's an unresolved tension here (limit **L3**). Renewal has to be cheap and automatic, or operators widen expiry windows and the fail-safe erodes. But reliable renewal makes staleness rare, and rare staleness is informative, which matters for [embargo](/concepts/disclosure-and-embargo).

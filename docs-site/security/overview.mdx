@@ -1,0 +1,56 @@
+---
+title: "Security model"
+description: "What Halflife defends against, what it deliberately doesn't, and how each threat maps to a mechanism."
+icon: "shield"
+---
+
+Halflife's security model rests on one invariant:
+
+<Note>
+**No consumer may treat an unrefreshed security claim as valid indefinitely.**
+</Note>
+
+Everything else is machinery for keeping that true.
+
+<Accordion title="In plain terms" icon="lightbulb">
+The most important rule is that a safety label can never be trusted forever. It must be renewed, or programs stop. The rest of the design exists to enforce that rule against people who'd like to get around it.
+</Accordion>
+
+## Threat model
+
+| Threat | Attacker capability | Mechanism | Outcome |
+|---|---|---|---|
+| **Delivery suppression** | Censor relayers, partition the network, crash renewal jobs | Reader-derived `STALE`; `handle` stores without rejecting expired passports | Consumers **block**. Suppression is fail-safe. |
+| **Forged passport** | Craft arbitrary bytes | Ed25519 over a domain-separated preimage, verified via precompile | Rejected |
+| **Status flip** | Modify `status` in transit | Signature covers every core byte | Rejected |
+| **Replay of a superseded passport** | Resubmit old signed bytes | Signed `sequence` plus high-water marks on every store | `SequenceNotIncreasing` |
+| **Cross-protocol signature reuse** | Reuse a Halflife signature elsewhere | `halflife-passport-v1` domain separator | Signature meaningless elsewhere |
+| **Issuer impersonation in the envelope** | Advertise issuer A, sign as B | `issuer_id` must equal core `issuer` | Rejected |
+| **Issuer squatting** | Register someone else's public key | Proof of possession bound to the registrant | `SignerMismatch` / `SignedMessageMismatch` |
+| **Future-dated claims** | Compromised issuer pre-signs past its revocation | 300 s skew bound plus forward-only revocation | Rejected |
+| **Speaking as the registry cross-chain** | Route the dispatch signature to a malicious program | Admin-only routes **and** a mailbox allowlist checked twice | `NotAdmin` / `UnknownMailbox` |
+| **Weak destination verification** | Rely on a default or NULL ISM | Contract reverts on zero or `NULL` | Unrepresentable |
+| **"Check if exists" integrations** | Prevent registration to get a free pass | Absence returns `Missing` everywhere | Blocks |
+| **Embargo leakage via counts** | Infer hidden circuits from totals | Audience applied inside the query | Indistinguishable |
+| **Evidence swap** | Pair a passport with different evidence | `evidence_hash` **and** `circuit_hash` must reproduce | Rejected |
+| **Silent arithmetic wrap** | Overflow in a security decision | `overflow-checks = true` in Solana release builds | Aborts |
+
+## What it deliberately doesn't defend against
+
+| Not covered | Why | Mitigation |
+|---|---|---|
+| A **stolen issuer key** publishing `INVALID` | Fail-safe design makes griefing possible at protocol scale (L5) | Consumer quorum. Threshold signing is planned (B8.2). |
+| The **upgrade authority** replacing the program | Single key today | Multisig, then threshold. Reproducible builds (B8.3). |
+| **Correlation** of embargoed staleness | Chain state is public (L2) | Randomised expiry and staggered renewal reduce it, but nothing removes it |
+| **Destination ed25519 verification** | The EVM has no precompile | Destination inherits Solana's verification |
+| **Unknown vulnerabilities** | C1 matches *published* advisories only | Higher tiers are specified, not built |
+| **Build/deployment drift** | `circuit_hash` v1 is a build fingerprint (L1, L6) | Verifying-key binding is the v2 intent |
+
+## Read next
+
+<CardGroup cols={2}>
+  <Card title="Invariants" icon="lock" href="/security/invariants">The six invariants and where each is enforced.</Card>
+  <Card title="Trust boundaries" icon="git-branch" href="/security/trust-boundaries">Evidence, authority, transport, policy.</Card>
+  <Card title="Self-review findings" icon="bug" href="/security/self-review-findings">Two holes found in Halflife's own program, and fixed.</Card>
+  <Card title="Known limits" icon="triangle-alert" href="/security/known-limits">Everything that's not solved, stated.</Card>
+</CardGroup>

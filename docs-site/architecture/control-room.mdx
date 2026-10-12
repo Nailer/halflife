@@ -1,0 +1,82 @@
+---
+title: "Control room"
+description: "The React interface at halflife-control-room.vercel.app. It renders what the CLI exported, reads Solana devnet directly, and computes nothing of its own."
+icon: "monitor"
+---
+
+**Live:** [halflife-control-room.vercel.app](https://halflife-control-room.vercel.app)
+
+The control room is the interface for security leads, evaluators, and the curious. It's a static React 18 + Vite 6 + TypeScript app in `apps/control-room`.
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the website dashboard. It shows which projects are OK, which have problems, what a bad library would affect, and recordings of real emergency drills. It also lets you check your own project, and it can read the real blockchain directly from your browser to prove the data is genuine.
+</Accordion>
+
+## The UI derives nothing
+
+Every number shown comes from `halflife export`. A dashboard that computes its own figures can display something the system doesn't actually believe, and the difference is invisible until it matters. So counts, affected sets, and drill timings are **read, never recomputed**. Where the interface does transform anything, it says so: a drill is played back at the gaps in its own record, scaled to stay watchable, and the scale factor is printed next to it.
+
+There are two deliberate exceptions, both of which go to primary sources rather than to anything Halflife computed: **Live read** queries Solana devnet directly, and **Check yours** queries OSV directly.
+
+## Views
+
+| View | Route | What it shows |
+|---|---|---|
+| Landing | `/` (no hash) | Animated intro, the decay-pipeline hero, and explanation sections |
+| **Overview** | `#app/overview` | Fleet stat tiles (every tile is clickable), with an attack-vs-weakness contrast |
+| **Impact** | `#app/impact` | Pick a dependency and see the blast radius: affected / clean / not reached |
+| **Fire drills** | `#app/drills` | Recorded devnet exercises replayed, with signatures linking to Solana Explorer |
+| **Fleet** | `#app/fleet` | Every registered circuit, plus **Read from devnet** (live read) |
+| **Check yours** | `#app/check` | Paste a `Cargo.lock` and get the C1 verdict from OSV in the browser |
+| **How it works** | `#app/about` | The architecture explained |
+
+Hash routing keeps deep links working on a static host with no rewrites. An unknown view under `#app/` falls back to Overview.
+
+## The audience toggle
+
+The headline control, top right: **PUBLIC** and **OPERATOR** load different exports (`state.json` vs `state.operator.json`). Embargoed findings aren't redacted in the public view. They're **absent**. Switching between the two is the clearest demonstration of the property, because the **counts change** rather than a lock icon appearing.
+
+## Live read: a fourth implementation of the format
+
+**Read from devnet** derives the passport PDA, fetches the account from `https://api.devnet.solana.com`, and decodes the 125 bytes in the browser with a `DataView` (little-endian), written against the spec rather than ported. It then resolves `VALID`/`STALE`/`INVALID` against the viewer's own clock. No file and no Halflife server sit in between.
+
+## Colour carries meaning only
+
+Chrome is monochrome on purpose. Colour is reserved for state:
+
+| Colour | State | Dark | Light |
+|---|---|---|---|
+| Green | `VALID` | `#3fb950` | `#1a7f37` |
+| Amber | `STALE` (evidence aged out, **not** a finding) | `#d29922` | `#9a6700` |
+| Red | `INVALID` (an issuer reported a problem) | `#f85149` | `#cf222e` |
+| Grey | `NONE` (no passport at all, which blocks) | `#6e7681` | `#6e7781` |
+
+Amber for stale is a deliberate refusal to paint it red. Status colours are redefined per theme, because amber on white needs a different value than amber on near-black to carry the same weight, but the meanings never move.
+
+## Tour
+
+Six steps spotlight real elements: what this is, the fleet at a glance, pick a dependency, run a fire drill, "is any of this real?", and public vs operator. The tour switches views when a step's target lives elsewhere, waits for the transition to settle before measuring, and remembers that you've seen it. The `?` button replays it. The scrim is a single large `box-shadow` on one moving rectangle, which keeps transitions smooth.
+
+## Data contract
+
+The UI consumes `State` (see [Export schema](/reference/export-schema)):
+
+```ts
+interface State {
+  generatedAt: string;
+  audience: "PUBLIC" | "OPERATOR";
+  circuits: Circuit[];
+  dependencies: Dependency[];
+  exercises: Exercise[];
+  hyperlaneDispatches?: HyperlaneDispatch[];
+  deployments: { solanaDevnet: { passportProgram: string; consumerProgram: string; hyperlaneMailbox: string } };
+  measured: { consumerCheckCu: number; publishCu: number; registerIssuerCu: number };
+}
+```
+
+## Robustness
+
+- Every `localStorage` access is wrapped in `try/catch`. A private window that throws loses the theme preference, not the page.
+- `deploy-ui.sh` asserts `/`, `/state.json`, and `/state.operator.json` return HTTP 200 **anonymously** after deploy, because new Vercel projects can default to SSO protection, which returns 403 to anyone who isn't signed in.
+
+See [Run the control room locally](/guides/control-room-local).

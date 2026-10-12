@@ -1,0 +1,89 @@
+---
+title: "The problem"
+description: "Why an audit is a perishable good, why zero-knowledge failures are silent, and why existing tooling stops short of enforcement."
+icon: "triangle-alert"
+---
+
+## Audits decay because what's findable changes
+
+A verification's **evidentiary strength** decays when the analysis frontier moves past the methodology that produced it. The code doesn't need to change for that to happen.
+
+The concrete case Halflife is built around: a researcher ran an auditing framework over the Zcash Orchard circuit with one model generation and found nothing. The same framework, on the same code, with the next model generation, found a soundness bug that had been present for years. The code never changed. The frontier moved.
+
+So a historical audit answers *what was knowable and testable then*. It doesn't answer *what is detectable now*.
+
+<Accordion title="In plain terms" icon="lightbulb">
+A house inspection from five years ago used the tools and knowledge of five years ago. New tools can spot cracks the old ones couldn't. The house hasn't changed, but the old report says less than it used to. Halflife treats security reports the same way: they lose weight over time and should be renewed.
+</Accordion>
+
+## 2026 supplied the evidence
+
+During 2026, several cryptographic systems that had each passed professional review were found to be broken:
+
+| System | Flaw (as reported) | Age of flaw |
+|---|---|---|
+| Zcash Sprout | Proof verification skipped | ~6 years |
+| Zcash Orchard | Missing copy constraint in `halo2_gadgets` (counterfeiting) | ~4 years |
+| Aztec V5 | Proving-system soundness bug in a recent alpha, found by Aztec's own AI-assisted audit | Recent |
+| Coldcard | Long-standing flaw; ~$116M drained | ~5 years |
+
+In at least two cases the bug was found with AI-assisted auditing. See the repository's README and `docs/submission/submission.md` for the project's sourced account.
+
+## Zero-knowledge bugs are silent
+
+A broken smart contract usually **reverts**, or produces visibly wrong state that shows up in a block explorer. An **under-constrained circuit** does neither. It accepts a **valid-looking proof for an invalid statement**. The verifier says yes. Nothing reverts, nothing fails, and nothing looks unusual on-chain.
+
+That has two consequences:
+
+1. **"No confirmed exploitation" is a structurally weak claim** for ZK systems, because exploitation may leave no trace.
+2. **Detection after the fact is unreliable**, so prevention and fast, automatic containment matter more than for ordinary software.
+
+<Accordion title="In plain terms" icon="lightbulb">
+With most software bugs, something visibly breaks. With a bug in a zero-knowledge circuit, a cheater can produce a "proof" that the system accepts as genuine. Everything looks normal while money or rules are being bypassed. You can't rely on noticing it happen, so you need to stop the system *before* or *as soon as* a weakness is known.
+</Accordion>
+
+## The response path today is slow and human
+
+When a vulnerability is published in a crate your protocol depends on, the typical path is:
+
+<Steps>
+  <Step title="You might not hear for weeks">
+    Nobody emails you. The advisory names a handful of crates, not the systems built on them.
+  </Step>
+  <Step title="Stopping takes humans">
+    A meeting, a governance vote, three multisig signers, a redeploy.
+  </Step>
+  <Step title="That takes hours or days">
+    Value moves the whole time.
+  </Step>
+  <Step title="And you can't see the damage">
+    Because ZK failures are silent.
+  </Step>
+</Steps>
+
+## Existing tooling stops short
+
+| Tool | What it does | Where it stops |
+|---|---|---|
+| `cargo audit` (RustSec) | Matches `Cargo.lock` against RustSec | **No entry** for `halo2_gadgets`, `orchard`, `zcash_primitives`, so it reports a vulnerable tree as clean |
+| Dependabot / `osv-scanner` | Match against GHSA / OSV | They see GHSA-ww9q-8r59-xv46, but they don't map it to **circuits**, and nothing on-chain can act on it |
+| Audits | Expert review at a point in time | No expiry, no machine-readable statement of method, no enforcement |
+| Attack-reactive pausing tools | Pause on detected *attacks* | React to exploitation in progress. Halflife reacts to a published **weakness**, before exploitation |
+
+The advisory for `halo2_gadgets` lists its affected crates and then says *"and any dependents thereof."* **Nothing enumerates them.** And **a program can't halt on a GHSA identifier**.
+
+<Accordion title="In plain terms" icon="lightbulb">
+Existing tools can warn a human that a library has a problem, if they use the right database. None of them tell you which zero-knowledge systems are built on that library, and none of them can make a blockchain program stop by itself. Halflife fills both gaps.
+</Accordion>
+
+## What Halflife changes
+
+| Today | With Halflife |
+|---|---|
+| You learn late | `halflife impact` enumerates every registered circuit that reaches the affected version |
+| Stopping needs a vote | The passport flips and the program stops within **one slot** |
+| Silence means "carry on" | Silence means **block**: expiry degrades `VALID` to `STALE` |
+| An audit is undated | Every passport has `issued_at`, `expires_at`, and a capability tier |
+| "Secure" is asserted | Only **what was executed** is asserted, at a named tier |
+
+Continue to [The security passport](/concepts/security-passport).

@@ -1,0 +1,99 @@
+---
+title: "EVM destination"
+description: "The destination registry that receives passport bytes over Hyperlane, refuses a null or default ISM, enforces a sequence high-water mark, and resolves staleness at read time."
+icon: "hexagon"
+---
+
+The `evm/` Foundry project contains the destination side:
+
+| Contract | Role |
+|---|---|
+| `HalflifeDestinationRegistry` | Hyperlane `IMessageRecipient`. Stores the latest passport per `(circuitHash, issuer)` and serves `statusAt` / `statusNow` |
+| `HalflifeConsumer` | Reference consumer. Refuses `submitProof()` unless the passport is current |
+| `MockMailbox`, `LocalAggregationIsm` | **Local-only** stand-ins for the cross-chain demo |
+| `IInterchainSecurityModule`, `IMessageRecipient` | Hyperlane interfaces, declared locally so there's no build-time dependency on the monorepo |
+
+<Accordion title="In plain terms" icon="lightbulb">
+This is the receiving end on Ethereum-style blockchains. One contract receives the labels sent from Solana and stores them. Another is an example of a project's contract that checks the label before doing any work.
+</Accordion>
+
+## Receiving: `handle`
+
+```solidity
+function handle(uint32 _origin, bytes32 _sender, bytes calldata message) external payable
+```
+
+| Check | Error |
+|---|---|
+| `msg.sender == mailbox` | `NotMailbox()` |
+| `_origin == originDomain` | `UnexpectedOrigin(domain)` |
+| `_sender == originSender` (the Solana registry) | `UnexpectedSender(sender)` |
+| `message.length == 125` | `BadMessageLength(length)` |
+| `version == 1` | `UnsupportedVersion(version)` |
+| status ∈ {1, 2} | `UnknownStatus(status)` |
+| If present: `sequence > stored.sequence` (**equal rejected too**) | `SequenceNotIncreasing(incoming, stored)` |
+
+The message is decoded with explicit little-endian reversal (`_u64le`), because the core is little-endian and EVM words are big-endian. On success it emits `PassportReceived(circuitHash, issuer, sequence, status)`.
+
+### Why expiry isn't enforced on receipt
+
+`handle` stores whatever arrives, and staleness is resolved at **read** time against the reader's clock. That's what makes suppression useless: if no update ever arrives, the stored passport ages out and consumers block. Rejecting expired messages on receipt would leave the **last good state** in place instead, which is the failure this design exists to prevent. The test `test_blocksWhenNoUpdateEverArrives` pins this.
+
+<Accordion title="In plain terms" icon="lightbulb">
+The receiver doesn't throw away labels that arrive late. It stores them and lets every reader check the date for themselves. If the receiver refused late labels, an older "OK" label might stay in place forever, which is exactly the danger Halflife exists to prevent.
+</Accordion>
+
+## Reading: `statusAt`
+
+```solidity
+enum Effective { Missing, Valid, Stale, Invalid }
+
+function statusAt(bytes32 circuitHash, bytes32 issuer, int64 timestamp) public view returns (Effective);
+function statusNow(bytes32 circuitHash, bytes32 issuer) external view returns (Effective);
+function get(bytes32 circuitHash, bytes32 issuer) external view returns (Passport memory);
+function key(bytes32 circuitHash, bytes32 issuer) public pure returns (bytes32); // keccak256(packed)
+```
+
+Ordering is load-bearing: `Missing` → `Invalid` → `Stale` → `Valid`. The `present` flag distinguishes "never delivered" from "delivered and empty".
+
+## The ISM is mandatory and can't be null
+
+A Hyperlane recipient that returns `address(0)` from `interchainSecurityModule()` inherits the mailbox default. This contract **can't**:
+
+| Attempted configuration | Result |
+|---|---|
+| `address(0)` (inherit the default) | `IsmRequired()` |
+| `Types.NULL` (verify nothing, trust the relayer) | `NullIsmRefused()` |
+| Later downgrade to either | Same reverts |
+| Non-owner change | `NotOwner()` |
+
+The weak configuration is made **unrepresentable** rather than discouraged: it's a `revert`, not a comment. The contract can't tell a 1-of-1 multisig from a 7-of-10, because `moduleType()` reports a category, not a threshold. That remains an operator decision, recorded in [ISM configuration](/security/ism-configuration).
+
+## The reference consumer
+
+```solidity
+constructor(Registry _registry, bytes32 _circuitHash, bytes32 _issuer, uint8 _minCapability)
+function submitProof() external          // reverts unless current; emits Proceeded(caller)
+function wouldProceed() external view returns (bool)
+```
+
+| Condition | Revert |
+|---|---|
+| Never delivered | `NoPassport()` |
+| `capability < minCapability` | `InsufficientCapability(have, need)` |
+| `Stale` | `PassportStale()`, **not a finding** |
+| `Invalid` | `PassportInvalid()` |
+
+## Tests
+
+```bash
+cd evm && forge install foundry-rs/forge-std --no-git && forge test -vv
+```
+
+| File | Covers |
+|---|---|
+| `Destination.t.sol` | Decoding, caller/origin/sender checks, supersession, redelivery, absence, valid/invalid/capability, **no update ever arrives**, invalid outranks clock, length and status validation |
+| `Ism.t.sol` | Aggregation ISM deploys, zero and NULL refused at construction and on change, owner-only changes |
+| `Conformance.t.sol` | Decodes bytes produced by the **Rust** encoder from `fixtures/vectors.json`, including boundary extremes that must not wrap |
+
+`Conformance.t.sol` matters because the other tests build cores in Solidity and decode them in Solidity, which proves only that the contract agrees with itself.

@@ -1,0 +1,65 @@
+---
+title: "Known limits"
+description: "Every limit Halflife knows about, stated so nobody has to discover it."
+icon: "triangle-alert"
+---
+
+<Warning>
+Read this page before relying on Halflife for anything that matters.
+</Warning>
+
+<Accordion title="In plain terms" icon="lightbulb">
+No system is perfect. This page lists everything Halflife can't do yet or does imperfectly, so you can decide with full knowledge.
+</Accordion>
+
+## Claims
+
+| # | Limit |
+|---|---|
+| — | Halflife **doesn't prove a circuit is secure**. It records what was tested, at what capability, against which build. |
+| D1 | Only **C1** is emitted: dependency closure plus advisory matching. Higher tiers are specified, **not claimed**. |
+| — | **No external audit.** Two holes were found and fixed in self-review, which says something about process and nothing about what hasn't been found. |
+
+## Protocol
+
+| # | Limit |
+|---|---|
+| L1 | `circuit_hash` v1 is a **build fingerprint**, not a binding to the constraint system or verifying key |
+| L2 | Embargo via staleness is **correlatable** from public chain state |
+| L3 | Cheap renewal makes staleness rare, and rare staleness is informative. This tension is **unresolved**. |
+| L4 | `advisory_count` can't distinguish three hits on one advisory from three advisories. It's a signal, never a policy input. |
+| L5 | A fail-safe design means a stolen issuer key can **grief at protocol scale**. That's bounded by quorum, not removed. |
+| L6 | Until artifact identity (P4B), a passport describes a registered source and build, not necessarily **what is running** |
+| L7 | The fleet's closures are **derived**, not the crates' own lockfiles |
+| — | A destination chain **inherits Solana's verification**. It can't check ed25519 itself. |
+
+## C1 is a blunt instrument
+
+It marks a closure `INVALID` on **any** advisory: no severity filter, no reachability analysis, and no runtime vs test-only distinction, with "unmaintained" notices counted. On a real Solana Groth16 verifier library's workspace lockfile (12 October 2026) it returned **14** packages, many of them test and tooling dependencies. That's the false-positive cost of failing closed, and why first adopters should use **CI and monitoring** rather than live halts. Severity and reachability filtering aren't built.
+
+## Deployment
+
+| # | Limit |
+|---|---|
+| L8 | `init_config` is **first-caller-wins**. It was run in the same step as deployment on devnet. |
+| — | The **upgrade authority is a single key**, and it's also the registry admin |
+| — | The mailbox **allowlist is code**. Adding a cluster needs a program upgrade. |
+| — | The admin can still redirect **where** messages go (domain, recipient), though not **which program receives the signature**. That's a griefing surface. |
+| — | `.so` builds are **not reproducible byte-for-byte**. "Deployed matches source" is taken on trust. |
+
+## Propagation
+
+| Limit |
+|---|
+| **Delivery to a destination chain isn't demonstrated** on a public network. The origin leg is real. The destination leg runs locally against a mock mailbox. |
+| No destination registry is deployed on a public chain, and no relayer was paid |
+
+## Scope
+
+| Limit |
+|---|
+| Cargo / crates.io only |
+| The fleet tracks four crates rather than resolving whole graphs (full transitive closure is P4A) |
+| Yank status isn't tracked as data |
+| Optional/dev dependency distinction is only a fixture comment |
+| Projection claims **circuits only**, not protocols, until consumer registration exists (B7.4) |

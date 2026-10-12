@@ -1,0 +1,65 @@
+---
+title: "Who it's for"
+description: "Each audience touches a different surface of Halflife. Find yours and the shortest path through these docs."
+icon: "users"
+---
+
+Halflife is a set of layers, and most people only ever touch one of them. Like a circuit breaker, its job is to work unattended.
+
+| Audience | What they touch | Start here |
+|---|---|---|
+| A developer | The `halflife` CLI and the CI gate | [Quickstart](/get-started/quickstart) |
+| Their on-chain program | The passport, a read-only account | [Integrate a Solana program](/guides/integrate-solana-program) |
+| Anyone with a Rust project | **Check yours** on the live site | [Check yours](/get-started/check-yours) |
+| A security lead | The control room: fleet status, blast radius, fire drills | [Control room](/architecture/control-room) |
+| An issuer or auditor | Keys, signing, evidence binding | [Issuers](/concepts/issuers) |
+| An implementer in another language | The frozen spec and conformance vectors | [Implement the spec](/guides/implement-the-spec) |
+| Everyone else | Nothing. It works unattended. | [What is Halflife?](/get-started/what-is-halflife) |
+
+<Accordion title="In plain terms" icon="lightbulb">
+You don't need to understand every part. A developer runs a command, a program reads a label, a security manager looks at a dashboard, and everybody else benefits without doing anything.
+</Accordion>
+
+## Paths by role
+
+<Tabs>
+  <Tab title="Application developer">
+    You maintain a Rust project that depends on cryptographic crates.
+
+    1. Paste your `Cargo.lock` into [Check yours](/get-started/check-yours) for an instant verdict.
+    2. Add the [GitHub Action](/guides/ci-github-action) so a regression can't merge.
+    3. Optionally run [`halflife scan`](/guides/scan-a-project) locally to produce a signed passport and evidence.
+
+    **You need:** a `Cargo.lock`. You don't need a blockchain, a key, or an account.
+  </Tab>
+  <Tab title="Protocol / program author">
+    You ship a Solana program (or an EVM contract) that accepts zero-knowledge proofs.
+
+    1. Read [Status and staleness](/concepts/status-and-staleness) and [Consumer policy](/concepts/consumer-policy).
+    2. Follow [Integrate a Solana program](/guides/integrate-solana-program).
+    3. For other chains, follow [Integrate an EVM contract](/guides/integrate-evm-contract).
+
+    **You decide:** which circuit hash you expect, which issuers you trust, and which minimum capability tier you require. Halflife never sets that policy for you.
+  </Tab>
+  <Tab title="Security lead">
+    You're responsible for knowing what's exposed and how fast it stops.
+
+    1. Open the [control room](https://halflife-control-room.vercel.app) and take the tour.
+    2. Read the [Security overview](/security/overview), [Trust boundaries](/security/trust-boundaries), and [Known limits](/security/known-limits).
+    3. Review the [Fire drills](/guides/run-fire-drills) and re-verify the recorded exercises yourself.
+  </Tab>
+  <Tab title="Issuer / auditor">
+    You attest to what was verified about a circuit.
+
+    1. Read [Issuers](/concepts/issuers) and the [Capability ladder](/concepts/capability-ladder).
+    2. Generate a key with `halflife keygen`, or any `solana-keygen` keypair.
+    3. Register on-chain with a proof of possession, then publish passports. See the [Solana passport program reference](/reference/solana-passport-program).
+  </Tab>
+  <Tab title="Evaluator / judge / investor">
+    You want to know what's real.
+
+    1. [Product and business](/resources/product-and-business) describes what's built, what isn't, and how it's priced.
+    2. [Measurements](/resources/measurements) gives every number and the command that reproduces it.
+    3. [Commitments](/security/commitments) lists every design promise and where it's enforced.
+  </Tab>
+</Tabs>
