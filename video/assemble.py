@@ -1,6 +1,6 @@
 import json, subprocess, sys
 
-X = 0.35  # crossfade
+X = 0.4  # crossfade
 FPS = 30
 tl = json.load(open("timeline.json"))
 out = sys.argv[1] if len(sys.argv) > 1 else "halflife-demo.mp4"

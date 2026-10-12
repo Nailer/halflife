@@ -1,127 +1,131 @@
 1
-00:00:00,800 --> 00:00:04,730
-This is Halflife — a use-by date for cryptographic security.
+00:00:01,400 --> 00:00:06,035
+This is Halflife — a use-by date for cryptographic security, on Solana.
 
 2
-00:00:05,717 --> 00:00:10,966
-In 2026, four cryptographic systems that had passed professional review failed.
+00:00:06,555 --> 00:00:10,714
+Your program stops trusting a circuit the moment its evidence expires.
 
 3
-00:00:10,986 --> 00:00:15,058
-Every flaw was years old. Every one was found with AI assistance.
+00:00:11,433 --> 00:00:16,682
+In 2026, four cryptographic systems that had passed professional review failed.
 
 4
-00:00:15,833 --> 00:00:23,400
-The researcher behind the Zcash Orchard bug had already scanned that same code with the previous model generation. It found nothing.
+00:00:16,702 --> 00:00:22,149
+Three had been hiding for four to six years. At least two were found by AI-assisted audits.
 
 5
-00:00:23,420 --> 00:00:26,178
-The code never changed. The tools got better.
+00:00:22,767 --> 00:00:30,599
+Zcash Orchard shipped in 2022, after review. Four years later, an AI-assisted audit found a counterfeiting bug in it.
 
 6
-00:00:26,498 --> 00:00:34,291
-So an audit is a perishable good. And zero-knowledge bugs are silent: a broken circuit still produces a valid-looking proof.
+00:00:30,619 --> 00:00:33,377
+The code never changed. The tools got better.
 
 7
-00:00:34,850 --> 00:00:43,473
-Halflife gives a circuit a passport: a signed, 125-byte claim of what was verified, on which build — and when it expires.
+00:00:33,697 --> 00:00:40,406
+So an audit is a perishable good. And a broken zero-knowledge circuit fails silently, with valid-looking proofs.
 
 8
-00:00:43,493 --> 00:00:49,608
-Solana enforces it. Hyperlane carries it across chains. Programs refuse to proceed without one.
+00:00:40,933 --> 00:00:49,556
+Halflife gives a circuit a passport: a signed, 125-byte claim of what was verified, on which build — and when it expires.
 
 9
-00:00:50,467 --> 00:00:56,944
-Here's the real CLI. The vulnerable Orchard build: three advisory hits. Passport signed INVALID.
+00:00:49,576 --> 00:00:55,691
+Solana enforces it. Hyperlane carries it across chains. Programs refuse to proceed without one.
 
 10
-00:00:56,964 --> 00:01:01,170
-The patched build: VALID. A consumer accepts one — and blocks the other.
-
-11
-00:01:01,190 --> 00:01:04,565
-Forge VALID onto the bad one, and the signature fails.
-
-12
-00:01:05,450 --> 00:01:11,681
+00:00:56,400 --> 00:01:02,631
 This is the live control room. Every number on it comes from real exercises on Solana devnet.
 
-13
-00:01:12,267 --> 00:01:18,210
+11
+00:01:02,951 --> 00:01:07,881
+Even the Hyperlane message is real, dispatched through the deployed devnet mailbox.
+
+12
+00:01:08,400 --> 00:01:14,343
 The halo2_gadgets advisory lists its affected crates, then says: “and any dependents thereof.”
 
-14
-00:01:18,530 --> 00:01:20,145
+13
+00:01:14,663 --> 00:01:16,278
 Nothing enumerates them.
 
-15
-00:01:21,065 --> 00:01:21,932
+14
+00:01:17,198 --> 00:01:18,065
 This does.
 
-16
-00:01:24,517 --> 00:01:29,063
-Now the patched version. It still reaches three circuits — and affects none of them.
+15
+00:01:20,400 --> 00:01:24,173
+The patched version still reaches three circuits — and affects none of them.
 
-17
-00:01:29,483 --> 00:01:35,843
+16
+00:01:24,493 --> 00:01:30,853
 Anyone can build an alarm. Showing what a healthy dependency doesn't touch is what proves it discriminates.
 
+17
+00:01:31,467 --> 00:01:38,495
+You can run the same check on your own project. Paste a Cargo.lock and your browser asks OSV directly.
+
 18
-00:01:36,600 --> 00:01:43,726
-Now, enforcement. This fire drill was recorded on Solana devnet — every signature links to the live explorer.
+00:01:39,115 --> 00:01:41,670
+The vulnerable Orchard lockfile: WOULD FAIL.
 
 19
-00:01:44,046 --> 00:01:50,086
-A finding lands, the passport is invalidated, and a third-party program refuses to proceed.
+00:01:42,690 --> 00:01:44,210
+The patched one: WOULD PASS.
 
 20
-00:01:50,406 --> 00:01:55,970
-That check costs 1,520 compute units — under 1% of a transaction budget.
+00:01:44,933 --> 00:01:51,097
+And it runs in CI: one line of YAML fails a pull request that pulls in a vulnerable dependency.
 
 21
-00:01:56,750 --> 00:01:58,078
-Now the one that matters.
+00:01:51,833 --> 00:01:58,158
+Now, enforcement. A fire drill recorded on Solana devnet — every signature is on the explorer.
 
 22
-00:01:58,498 --> 00:02:03,619
-A passport is published — and then nothing. No invalidation. The relayer simply stops.
+00:01:58,478 --> 00:02:04,518
+A finding lands, the passport is invalidated, and a third-party program refuses to proceed.
 
 23
-00:02:06,239 --> 00:02:10,596
-41 seconds later, the consumer blocks anyway — on expiry alone.
+00:02:04,838 --> 00:02:11,621
+That check costs 1,520 compute units — and read-only passports let Sealevel run checks in parallel.
 
 24
-00:02:11,216 --> 00:02:15,475
-A passport can't vouch for its own freshness. The reader checks its own clock.
+00:02:12,233 --> 00:02:13,561
+Now the one that matters.
 
 25
-00:02:15,695 --> 00:02:18,573
-So withholding a message produces the safe outcome.
+00:02:13,981 --> 00:02:19,102
+A passport is published — and then nothing. No invalidation. The relayer simply stops.
 
 26
-00:02:19,733 --> 00:02:21,525
-Flip from PUBLIC to OPERATOR.
+00:02:21,322 --> 00:02:25,679
+41 seconds later, the consumer blocks anyway — on expiry alone.
 
 27
-00:02:22,045 --> 00:02:25,377
-The same advisory now affects three circuits — not one.
+00:02:26,199 --> 00:02:30,458
+A passport can't vouch for its own freshness. The reader checks its own clock.
 
 28
-00:02:25,697 --> 00:02:31,386
-These are real crates under a disclosure embargo. In public they're not redacted — they're absent.
+00:02:30,678 --> 00:02:33,556
+So withholding a message produces the safe outcome.
 
 29
-00:02:32,150 --> 00:02:41,059
-Why Solana? Passports are read-only to consumers, so Sealevel runs every check in parallel — that's how security fits inside a hot path.
+00:02:34,567 --> 00:02:38,068
+Don't want to trust our dashboard? Press Read from devnet.
 
 30
-00:02:41,833 --> 00:02:45,912
-Finally, Halflife issues a passport for itself, under the same rules.
+00:02:38,488 --> 00:02:44,425
+Your browser pulls the real passport from Solana and decodes the 125 bytes itself.
 
 31
-00:02:46,232 --> 00:02:51,325
-It comes back INVALID — 15 advisories in its own closure. We published it anyway.
+00:02:45,133 --> 00:02:49,212
+Finally, Halflife issues a passport for itself, under the same rules.
 
 32
-00:02:52,183 --> 00:02:54,281
+00:02:49,532 --> 00:02:54,625
+It comes back INVALID — 15 advisories in its own closure. We published it anyway.
+
+33
+00:02:55,433 --> 00:02:57,531
 Halflife. No claim without measurement.

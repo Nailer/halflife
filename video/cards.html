@@ -267,7 +267,7 @@ html, body { width: 1440px; height: 810px; overflow: hidden; background: var(--b
   </div>
   <div class="rows">
     <div class="frow" data-a="left@1.0"><span class="d">23 MAR</span><span class="n">Zcash Sprout</span><span class="w">Proof verification skipped entirely</span>
-      <span class="age"><span class="bar" style="width:140px" data-a="grow@1.3" data-d=".9"></span><span class="yrs">4 yrs</span></span></div>
+      <span class="age"><span class="bar" style="width:210px" data-a="grow@1.3" data-d=".9"></span><span class="yrs">~6 yrs</span></span></div>
     <div class="frow" data-a="left@1.7"><span class="d">29 MAY</span><span class="n">Zcash Orchard</span><span class="w">Counterfeiting circuit</span>
       <span class="age"><span class="bar" style="width:140px" data-a="grow@2.0" data-d=".9"></span><span class="yrs">4 yrs</span></span></div>
     <div class="frow" data-a="left@2.4"><span class="d">27 JUL</span><span class="n">Aztec V5</span><span class="w">Proving-system soundness</span>
@@ -276,8 +276,8 @@ html, body { width: 1440px; height: 810px; overflow: hidden; background: var(--b
       <span class="age"><span class="bar" style="width:175px" data-a="grow@3.4" data-d=".9"></span><span class="yrs">5 yrs</span></span></div>
   </div>
   <div class="tags">
-    <div class="tag" data-a="up@c1+0.1"><span class="k">every flaw</span>was <span class="red">years old</span></div>
-    <div class="tag" data-a="up@c1+1.6"><span class="k">every one</span>was found <span class="blu">with AI assistance</span></div>
+    <div class="tag" data-a="up@c1+0.1"><span class="k">three of four</span>hidden for <span class="red">4–6 years</span></div>
+    <div class="tag" data-a="up@c1+2.4"><span class="k">at least two</span>found by <span class="blu">AI-assisted audits</span></div>
   </div>
 </section>
 
@@ -287,23 +287,23 @@ html, body { width: 1440px; height: 810px; overflow: hidden; background: var(--b
   <div class="brand"><b>Halflife</b><span>demo</span></div>
   <div class="chap"><i>01</i>The problem</div>
   <div class="ph a" data-o="c2-0.35">
-    <div class="h"><div class="k" data-a="up@0.2">Zcash Orchard · the detail that matters</div><div class="h2" data-a="up@0.35">Same code. Same framework. Different model.</div></div>
+    <div class="h"><div class="k" data-a="up@0.2">Zcash Orchard · halo2_gadgets</div><div class="h2" data-a="up@0.35">Same code. Better tools.</div></div>
     <div class="cols">
       <div class="card gen" data-a="left@0.9">
-        <div class="k">previous model generation</div>
-        <div class="t">Scanned Orchard</div>
+        <div class="k">2022 · at launch</div>
+        <div class="t">Reviewed, then shipped</div>
         <div class="code">halo2_gadgets · ecc::mul<br>variable-base scalar multiplication</div>
-        <div class="res" data-a="pop@c0+5.2"><span class="dot" style="background: var(--none)"></span><span style="color: var(--dim)">0 findings</span></div>
+        <div class="res" data-a="pop@c0+2.0"><span class="dot" style="background: var(--valid)"></span><span class="grn">in production</span></div>
       </div>
       <div class="mid">
         <div class="eq" data-a="fade@c1"><span>code changed</span><b>0 lines</b></div>
-        <div class="eq" data-a="fade@c1+1.2"><span>capability</span><b class="blu">↑</b></div>
+        <div class="eq" data-a="fade@c1+1.2"><span>tools</span><b class="blu">↑</b></div>
       </div>
-      <div class="card gen" data-a="right@c1-0.1" style="border-color: rgba(248,81,73,.5)">
-        <div class="k">next model generation</div>
-        <div class="t">Scanned Orchard</div>
+      <div class="card gen" data-a="right@c0+3.4" style="border-color: rgba(248,81,73,.5)">
+        <div class="k">2026 · AI-assisted audit</div>
+        <div class="t">Scanned again</div>
         <div class="code">halo2_gadgets · ecc::mul<br>variable-base scalar multiplication</div>
-        <div class="res" data-a="pop@c1+1.2"><span class="dot" style="background: var(--invalid); box-shadow: 0 0 12px var(--invalid)"></span><span class="red">counterfeiting bug</span></div>
+        <div class="res" data-a="pop@c0+5.6"><span class="dot" style="background: var(--invalid); box-shadow: 0 0 12px var(--invalid)"></span><span class="red">counterfeiting bug</span></div>
       </div>
     </div>
   </div>
@@ -318,7 +318,7 @@ html, body { width: 1440px; height: 810px; overflow: hidden; background: var(--b
   </div>
   <div class="ph c" data-a="fade@c2+2.4">
     <div class="k" data-a="up@c2+2.4">zero-knowledge bugs are silent</div>
-    <div class="h2" data-a="up@c2+2.5" style="margin-top: 14px">A broken circuit still produces a valid-looking proof.</div>
+    <div class="h2" data-a="up@c2+2.5" style="margin-top: 14px">A broken circuit fails with valid-looking proofs.</div>
     <div class="card proofbox" data-a="up@c2+3.2">
       <div class="r" data-a="fade@c2+3.6"><span>statement</span><span class="red">invalid</span></div>
       <div class="r" data-a="fade@c2+4.1"><span>proof verifies</span><span class="grn">✓ true</span></div>
@@ -457,7 +457,7 @@ html, body { width: 1440px; height: 810px; overflow: hidden; background: var(--b
     <div class="lk" data-a="up@1.65"><span class="k">consumer program · devnet</span><div class="v w">BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW</div></div>
   </div>
   <div class="chips">
-    <span class="chip" style="--c: #3fb950" data-a="pop@2.1"><i></i>./scripts/verify-all.sh · 32 checks</span>
+    <span class="chip" style="--c: #3fb950" data-a="pop@2.1"><i></i>./scripts/verify-all.sh · 39 checks</span>
     <span class="chip" style="--c: #a371f7" data-a="pop@2.25"><i></i>Solana</span>
     <span class="chip" style="--c: #58a6ff" data-a="pop@2.4"><i></i>Hyperlane</span>
     <span class="chip" style="--c: #d29922" data-a="pop@2.55"><i></i>Zcash</span>

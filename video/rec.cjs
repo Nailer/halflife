@@ -40,24 +40,30 @@ const STEPPER = () => {
   });
 };
 
-async function open({ url, viewport = { width: 1440, height: 810 }, scale = 4 / 3, init }) {
+async function open({ url, viewport = { width: 1440, height: 810 }, scale = 4 / 3, init, warm = true }) {
   const browser = await chromium.launch({ args: ['--font-render-hinting=none', '--disable-lcd-text', '--hide-scrollbars'] });
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: scale, colorScheme: 'dark' });
   const page = await ctx.newPage();
   await setup(page);
   await page.addInitScript(STEPPER);
-  await page.clock.install({ time: new Date('2026-10-03T12:00:00Z') });
-  await page.clock.pauseAt(new Date('2026-10-03T12:00:01Z'));
+  // Real wall-clock start, so anything time-dependent (passport expiry,
+  // timestamps) reads true; then paused so frames step it deterministically.
+  const T0 = Date.now();
+  await page.clock.install({ time: T0 });
+  await page.clock.pauseAt(T0 + 1000);
   await page.goto(url);
   await page.evaluate(() => document.fonts.ready);
   // let data load: timers are frozen, but fetch is real
-  for (let i = 0; i < 10; i++) { await page.clock.runFor(50); await page.waitForTimeout(60); }
+  if (warm) for (let i = 0; i < 10; i++) { await page.clock.runFor(50); await page.waitForTimeout(60); }
+  else await page.waitForTimeout(400);
   if (init) await init(page);
   return { browser, page };
 }
 
 // actions: [{at: seconds, fn: async (page) => {}}]
-async function record(page, { dur, out, actions = [] }) {
+// ticks: [{from, to, fn: async (page, u) => {}}] run every frame in [from, to]
+// with u eased 0..1 — for scrolling and other continuous moves.
+async function record(page, { dur, out, actions = [], ticks = [] }) {
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
     '-c:v', 'libx264', '-preset', 'medium', '-crf', '12', '-pix_fmt', 'yuv420p', '-r', String(FPS), out], { stdio: ['pipe', 'inherit', 'inherit'] });
   const queue = actions.slice().sort((a, b) => a.at - b.at);
@@ -66,6 +72,10 @@ async function record(page, { dur, out, actions = [] }) {
   for (let f = 0; f < n; f++) {
     const t = f / FPS;
     while (queue.length && queue[0].at <= t + 1e-6) await queue.shift().fn(page);
+    for (const k of ticks) if (t >= k.from && t <= k.to + 1 / FPS) {
+      const x = Math.min(1, (t - k.from) / (k.to - k.from));
+      await k.fn(page, x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+    }
     await page.clock.runFor(DT);
     await page.evaluate(async (dt) => { await window.__settle(); window.__step(dt); }, DT);
     const buf = await page.screenshot({ type: 'png' });

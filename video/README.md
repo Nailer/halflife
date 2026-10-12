@@ -1,6 +1,6 @@
 # Demo video — how it is made
 
-**Output:** `docs/submission/halflife-demo.mp4` (1920×1080, 30fps, ~2:57) and
+**Output:** `docs/submission/halflife-demo.mp4` (1920×1080, 30fps, 2:59) and
 `halflife-demo.srt` (captions, also burned in).
 
 This follows [`docs/submission/video-brief.md`](../docs/submission/video-brief.md):
@@ -12,6 +12,7 @@ This follows [`docs/submission/video-brief.md`](../docs/submission/video-brief.m
 |---|---|
 | Control room (Overview, Impact, Fire drills, Public/Operator) | The actual `apps/control-room`, driven in headless Chromium, reading the committed `state.json` / `state.operator.json` |
 | CLI | Verbatim output of `OFFLINE=1 ./scripts/demo.sh` (pinned OSV snapshot) replayed in a terminal frame |
+| Landing page, Check yours, live devnet read | The real app; its OSV and Solana devnet calls are made live at capture time (relayed through curl in the recording sandbox) |
 | Self-passport | Figures from `docs/self-passport.md` (653 packages, 15 advisories, INVALID) |
 | Title / problem / passport / why-Solana cards | Typography and diagrams only; every number is one the repo measures or documents |
 
@@ -39,7 +40,7 @@ cd video
 python3 tts.py am_michael 1.2      # narration -> audio/*.wav + timeline.json
 node scenes_app.cjs                # real control-room scenes -> clips/
 node scenes_cards.cjs              # typography scenes -> clips/
-python3 music.py 177.2             # synthesized ambient bed -> music.wav
+python3 music.py 180.5             # synthesized ambient bed -> music.wav
 python3 assemble.py ../docs/submission/halflife-demo.mp4
 ```
 

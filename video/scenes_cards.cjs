@@ -3,7 +3,7 @@ const { open, record } = require('./rec.cjs');
 const TL = JSON.parse(fs.readFileSync('timeline.json'));
 const CSS = fs.readFileSync('common.css', 'utf8');
 const OVJS = fs.readFileSync('overlay.js', 'utf8');
-const CARDS = ['s01_title', 's02_problem', 's03_insight', 's04_solution', 's05_cli', 's12_why', 's13_self', 's14_end'];
+const CARDS = ['s02_problem', 's03_insight', 's04_solution', 's13_self', 's14_end'];
 const at = (t, code) => ({ at: t, fn: (p) => p.evaluate(code) });
 (async () => {
   const only = process.argv.slice(2);
