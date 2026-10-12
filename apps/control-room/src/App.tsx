@@ -9,6 +9,7 @@ import { Drills } from "./views/Drills";
 import { Fleet } from "./views/Fleet";
 import { About } from "./views/About";
 import { Check } from "./views/Check";
+import { Landing } from "./Landing";
 
 const VIEWS = [
   { id: "overview", label: "Overview" },
@@ -58,24 +59,46 @@ const STEPS: TourStep[] = [
   },
 ];
 
+// The landing page lives at the bare URL; the control room lives at #app/<view>.
+// Hash routing keeps deep links working on a static host with no rewrites.
+function routeFromHash(): string | null {
+  const h = window.location.hash.replace(/^#\/?/, "");
+  if (!h.startsWith("app")) return null;
+  const v = h.split("/")[1];
+  return VIEWS.some((x) => x.id === v) ? v : "overview";
+}
+
 export function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [state, setState] = useState<State | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [audience, setAudience] = useState<"PUBLIC" | "OPERATOR">("PUBLIC");
-  const [view, setView] = useState<string>("overview");
+  const [route, setRoute] = useState<string | null>(routeFromHash);
+  const view = route ?? "overview";
+  const setView = (v: string) => {
+    window.location.hash = `#app/${v}`;
+  };
   const [tour, setTour] = useState(false);
 
   useEffect(() => applyTheme(theme), [theme]);
 
+  useEffect(() => {
+    const on = () => {
+      setRoute(routeFromHash());
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+
   // Hold the tour until data has landed, so step one does not spotlight a
   // skeleton.
   useEffect(() => {
-    if (state && !hasSeenTour()) {
+    if (state && route !== null && !hasSeenTour()) {
       const t = setTimeout(() => setTour(true), 650);
       return () => clearTimeout(t);
     }
-  }, [state]);
+  }, [state, route]);
 
   useEffect(() => {
     const file = audience === "OPERATOR" ? "state.operator.json" : "state.json";
@@ -100,13 +123,17 @@ export function App() {
     };
   }, [state]);
 
+  if (route === null) {
+    return <Landing theme={theme} onTheme={() => setTheme(theme === "dark" ? "light" : "dark")} />;
+  }
+
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="brand">
+        <a className="brand" href="#" title="Back to the overview page" style={{ textDecoration: "none", color: "inherit" }}>
           <h1>Halflife</h1>
           <span>control room</span>
-        </div>
+        </a>
 
         <nav className="nav" aria-label="Views">
           {VIEWS.map((v) => (

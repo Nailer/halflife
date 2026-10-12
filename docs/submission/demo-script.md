@@ -1,6 +1,28 @@
 # Demo script
 
-Three minutes. Everything shown is live; nothing is staged.
+Three minutes **maximum**. Everything shown is live; nothing is staged.
+
+## Timing budget (read this first)
+
+The sections below were written at about 3:20 before the landing page, the
+checker and the Action existed. To stay at or under 3:00 with them, record to this
+budget and cut narration, not shots:
+
+| Section | Seconds | Note |
+|---|---|---|
+| 0b Landing page | 8 | Let the intro play once, then scroll fast |
+| 1 The problem | 20 | Trim to two sentences |
+| 2 The enumeration | 30 | Impact view, one dependency |
+| 2b Check yours | 15 | The strongest "try it" shot |
+| 2c The GitHub Action | 8 | YAML on screen, one sentence |
+| 3 Enforcement | 35 | Keep the 1,520 CU number |
+| 4 The property | 30 | The censorship drill |
+| 5 The embargo | 15 | Optional; drop first if over |
+| 6 Close | 15 | |
+| **Total** | **176** | about 2:56. Skip 5b entirely. |
+
+Record each section as its own clip, then trim. If the total is over 3:00, drop
+section 5 before shortening anything else.
 
 Open **https://halflife-control-room.vercel.app** and have a terminal in the
 repo. Skip the tour if it appears — you are giving it yourself.
@@ -17,6 +39,13 @@ Leave the `39 passed · 0 failed` on screen if you want a cold open. If anything
 is red, stop and fix it rather than talking over it.
 
 ---
+
+## 0b · The landing page (8 seconds)
+
+Start on the bare URL so the intro plays: the curve draws itself, then the page
+rises in. Do not skip it. Scroll once, briskly, past the "how it works" steps.
+Say: "Halflife gives a zero-knowledge circuit a use-by date. Your program stops
+trusting it when it expires." Then press **Enter the control room**.
 
 ## 1 · The problem (25 seconds)
 
@@ -61,6 +90,13 @@ verdict reads **WOULD FAIL**. Press *Example: patched to 0.5.0* and it reads
 **WOULD PASS**. Say: "Anyone can paste their own lockfile. It's the same lookup the
 CLI does, unsigned, in your browser." Do not call it a passport: it isn't signed
 and nothing is on-chain.
+
+## 2c · The GitHub Action (8 seconds)
+
+Show the three-line YAML on the landing page ("Add the GitHub Action") or in the
+README, then the green **reusable action** job in the repository's Actions tab.
+Say: "One line in CI fails a pull request that pulls in a vulnerable dependency."
+It is tested through `uses:` in both directions; do not say it has users.
 
 ## 3 · Enforcement (45 seconds)
 
