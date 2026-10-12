@@ -8,12 +8,14 @@ import { Impact } from "./views/Impact";
 import { Drills } from "./views/Drills";
 import { Fleet } from "./views/Fleet";
 import { About } from "./views/About";
+import { Check } from "./views/Check";
 
 const VIEWS = [
   { id: "overview", label: "Overview" },
   { id: "impact", label: "Impact" },
   { id: "drills", label: "Fire drills" },
   { id: "fleet", label: "Fleet" },
+  { id: "check", label: "Check yours" },
   { id: "about", label: "How it works" },
 ] as const;
 
@@ -158,6 +160,7 @@ export function App() {
         {view === "impact" && <Impact state={state} audience={audience} />}
         {view === "drills" && <Drills exercises={state?.exercises ?? []} />}
         {view === "fleet" && <Fleet state={state} />}
+        {view === "check" && <Check />}
         {view === "about" && <About />}
       </main>
 
@@ -166,7 +169,9 @@ export function App() {
           Every figure here is produced by <code>halflife export</code> from the
           registry and from exercises run against Solana devnet. The interface
           computes nothing of its own — a dashboard that derives its own numbers
-          can show something the system does not believe. Drill timings are the
+          can show something the system does not believe. The two exceptions
+          query a public source directly from your browser and say so: the
+          devnet read (Fleet) and the lockfile check (Check yours, unsigned). Drill timings are the
           gaps in the record, scaled for watchability and labelled when they are.
         </p>
       </footer>

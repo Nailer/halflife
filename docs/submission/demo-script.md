@@ -53,6 +53,15 @@ Now click **`halo2_gadgets 0.5.0`** — the patched version.
 
 ---
 
+## 2b · Try it on your own project (20 seconds, optional)
+
+Click **Check yours**. Press *Example: pinned to the vulnerable halo2_gadgets*:
+three packages come back with the real advisory (GHSA-ww9q-8r59-xv46) and the
+verdict reads **WOULD FAIL**. Press *Example: patched to 0.5.0* and it reads
+**WOULD PASS**. Say: "Anyone can paste their own lockfile. It's the same lookup the
+CLI does, unsigned, in your browser." Do not call it a passport: it isn't signed
+and nothing is on-chain.
+
 ## 3 · Enforcement (45 seconds)
 
 Go to **Fire drills**. Make sure **DEPENDENCY COMPROMISE** is selected. Hit

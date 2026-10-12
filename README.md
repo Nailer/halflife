@@ -109,6 +109,7 @@ causes the block.**
 |---|---|
 | A developer | The CLI and the CI check |
 | Their on-chain program | The passport — a read-only account |
+| Anyone with a Rust project | **Check yours** on the live site: paste a `Cargo.lock`, get a would-pass / would-fail verdict from OSV in your browser, no install |
 | A security lead | The control room: fleet status, blast radius, fire drills |
 | Everyone else | Nothing. Like a circuit breaker, it works unattended. |
 
