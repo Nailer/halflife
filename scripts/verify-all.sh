@@ -122,6 +122,18 @@ if [ -f solana/target/deploy/halflife_passport.so ]; then
     grep -qE "SequenceNotIncreasing"  /tmp/hl.bench && ok "replay refused (SequenceNotIncreasing)"     || bad "replay guard"
     grep -qE "PassportStale"          /tmp/hl.bench && ok "FAIL-SAFE on-chain: stale blocks, nothing published" || bad "on-chain fail-safe"
     grep -qE "round trip preserves"   /tmp/hl.bench && ok "on-chain re-encoding reproduces the signed bytes"    || bad "round-trip integrity"
+    # Each attack that used to land must be refused with its specific error.
+    # Matching the name, not just "refused", so a different failure cannot pass.
+    for pair in "non-admin:NotAdmin" "unknown mailbox:UnknownMailbox" \
+                "key you don't hold:SignerMismatch" "no proof:MissingSignatureInstruction" \
+                "replaying a proof:SignedMessageMismatch" "second time:refused"; do
+      label="${pair%%:*}"; want="${pair##*:}"
+      if grep -E "$label" /tmp/hl.bench | grep -q "$want"; then
+        ok "access control: $label -> $want"
+      else
+        bad "access control: $label was not refused with $want"
+      fi
+    done
   else
     bad "benchmark"; tail -12 /tmp/hl.bench | sed 's/^/       /'
   fi
@@ -181,6 +193,16 @@ if command -v anvil >/dev/null 2>&1 && [ -f evm/src/MockMailbox.sol ]; then
   fi
 else
   skip "anvil unavailable — cross-chain path not exercised"
+fi
+
+# The Hyperlane origin leg, against the real deployed devnet mailbox. This
+# re-reads the mailbox's OWN account rather than trusting our recording.
+disp=$(ls -t exercises/hyperlane-dispatch-*.json 2>/dev/null | head -1)
+if [ -n "$disp" ]; then
+  run "real Hyperlane dispatch verifies against devnet (origin leg)" \
+      "./target/release/halflife-exercise verify-dispatch $disp"
+else
+  skip "no Hyperlane dispatch record — run: halflife-exercise dispatch"
 fi
 
 # Halflife under its own instrument. The result is allowed to be unflattering;

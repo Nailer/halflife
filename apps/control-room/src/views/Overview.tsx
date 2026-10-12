@@ -13,7 +13,7 @@ export function Overview({
   return (
     <div className="view">
       <div className="card hero" data-tour="hero">
-        <h3>A use-by date for cryptographic security.</h3>
+        <h3>Every circuit has a <span className="lp-grad">use-by date.</span></h3>
         <p>
           A circuit's audit tells you what someone knew then. A passport tells
           your program what has actually been verified, at what capability,
@@ -58,6 +58,49 @@ export function Overview({
           </button>
         </div>
       </div>
+
+      {state?.hyperlaneDispatches?.length ? (
+        <div className="card" data-tour="hyperlane">
+          <header>
+            <h2>Hyperlane · real dispatch from Solana devnet</h2>
+          </header>
+          <div className="body">
+            {(() => {
+              const d = state.hyperlaneDispatches[state.hyperlaneDispatches.length - 1];
+              return (
+                <>
+                  <p className="note">
+                    The passport program called Hyperlane's <strong>deployed</strong>{" "}
+                    devnet mailbox, which accepted the message with{" "}
+                    <strong>our program as the sender</strong>. The fields below
+                    were read back from the mailbox's own account, not from our
+                    records.
+                  </p>
+                  <dl className="kv" style={{ marginTop: 13 }}>
+                    <dt>Message id</dt><dd>{d.message_id}</dd>
+                    <dt>Sender</dt><dd>{d.sender}</dd>
+                    <dt>Destination</dt><dd>domain {d.destination_domain}</dd>
+                    <dt>Nonce</dt><dd>{d.nonce}</dd>
+                    <dt>Transaction</dt>
+                    <dd>
+                      <a href={`https://explorer.solana.com/tx/${d.transaction}?cluster=devnet`} target="_blank" rel="noreferrer">
+                        {d.transaction.slice(0, 22)}…
+                      </a>
+                    </dd>
+                  </dl>
+                  <p className="note" style={{ marginTop: 13 }}>
+                    <strong>What this does not show:</strong> delivery. No
+                    destination registry is deployed on a public chain, the
+                    recipient is a placeholder, and no relayer was paid. The
+                    origin leg is real; the destination leg is exercised against
+                    a local chain.
+                  </p>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid g-half">
         <div className="card">

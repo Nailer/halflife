@@ -91,7 +91,7 @@ pre-approved: the decision depends on a measurement that does not exist yet.
 
 - [x] **B7.1** Explorer
 - [x] **B7.2** Control room — projection, exercise, live telemetry
-- [x] **B7.3** CI action — the adoption wedge
+- [x] **B7.3** CI action — the adoption wedge (`action.yml`; built 12 Oct 2026. Before then only an internal test script existed, not a reusable Action)
 - [ ] **B7.4** Consumer registration (only then may projection claim protocols)
 
 ## Stage 8 — Assurance

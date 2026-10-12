@@ -382,3 +382,73 @@ footer.foot p { font-size: 12px; color: var(--faint); max-width: 84ch; line-heig
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .tl-row { opacity: 1 !important; }
 }
+
+/* Check view */
+.paste {
+  width: 100%; min-height: 220px; margin-top: 12px; padding: 12px;
+  font-family: var(--m); font-size: 11.5px; line-height: 1.5; color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; resize: vertical;
+}
+.paste:focus { outline: none; border-color: var(--live); }
+.cta-row { margin-top: 12px; display: flex; gap: 9px; flex-wrap: wrap; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.hit { padding: 10px 0; border-top: 1px solid var(--border); }
+.hit .nm { font-size: 13px; font-weight: 600; }
+.hit .ids { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 5px; font-family: var(--m); font-size: 11px; }
+.dim { color: var(--faint); font-weight: 400; }
+.snip { margin: 8px 0 12px; padding: 10px 12px; font-family: var(--m); font-size: 11.5px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; }
+
+/* ===================== unified theme (matches the landing page) =====================
+ * Same rule as before — colour is reserved for state — but the chrome now shares
+ * the landing page's atmosphere: drifting glow, glass cards, inverted primary
+ * buttons, the decay gradient as the one brand accent. Status colours are
+ * untouched on purpose. */
+.shell { position: relative; }
+.shell > .lp-bg { z-index: 0; }
+.shell > .lp-bg i { opacity: 0.09; }
+[data-theme="light"] .shell > .lp-bg i { opacity: 0.08; }
+.shell > .main, .shell > .foot { position: relative; z-index: 1; }
+
+.topbar { background: color-mix(in srgb, var(--bg) 74%, transparent); border-bottom-color: color-mix(in srgb, var(--line) 70%, transparent); }
+.brand { align-items: center; gap: 10px; }
+.brand-mark { width: 24px; height: 24px; flex: 0 0 auto; align-self: center; }
+.brand h1 { letter-spacing: -0.03em; }
+.brand:hover h1 { background: linear-gradient(100deg, var(--valid), var(--stale), var(--invalid)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.nav button { border-radius: 9px; }
+.nav button[data-on="true"]::after {
+  background: linear-gradient(90deg, var(--valid), var(--stale), var(--invalid));
+  height: 2px; left: 12px; right: 12px; bottom: 3px;
+}
+.icon-btn { border-radius: 9px; background: color-mix(in srgb, var(--surface) 60%, transparent); }
+.aud { background: color-mix(in srgb, var(--bg-2) 70%, transparent); }
+
+.card {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  border-radius: 16px; border-color: color-mix(in srgb, var(--line-2) 70%, var(--line));
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.card:hover { border-color: var(--line-2); box-shadow: var(--shadow); }
+.card > header { background: color-mix(in srgb, var(--bg-2) 55%, transparent); }
+.search { background: color-mix(in srgb, var(--bg-2) 55%, transparent); }
+.stat { background: color-mix(in srgb, var(--surface) 82%, transparent); }
+.stats { background: color-mix(in srgb, var(--line) 80%, transparent); }
+
+.btn { border-radius: 10px; padding: 10px 16px; background: color-mix(in srgb, var(--surface) 60%, transparent); transition: transform 0.18s, background 0.18s, border-color 0.18s, box-shadow 0.18s; }
+.btn:hover { transform: translateY(-1px); }
+.btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn.primary:hover { background: var(--text); box-shadow: 0 10px 28px -12px color-mix(in srgb, var(--text) 55%, transparent); }
+.btn.primary svg { transition: transform 0.18s; }
+.btn.primary:hover svg { transform: translateX(3px); }
+
+/* the hero: a quiet gradient wash so the first card feels like the landing page */
+.hero { position: relative; background:
+    radial-gradient(60% 120% at 100% 0%, color-mix(in srgb, var(--stale) 9%, transparent), transparent 60%),
+    radial-gradient(50% 100% at 0% 100%, color-mix(in srgb, var(--valid) 8%, transparent), transparent 60%),
+    color-mix(in srgb, var(--surface) 72%, transparent); }
+.hero h3 { max-width: 24ch; letter-spacing: -0.035em; }
+
+.foot { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+
+@media (prefers-reduced-motion: reduce) { .shell > .lp-bg i { animation: none !important; } }

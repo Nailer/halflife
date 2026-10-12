@@ -6,17 +6,18 @@ Live tracking of our obligations under [`disclosure-policy.md`](disclosure-polic
 
 **Four published crates in the registry resolve to `halo2_gadgets` versions
 affected by [GHSA-ww9q-8r59-xv46](https://osv.dev/vulnerability/GHSA-ww9q-8r59-xv46).**
-They are not named on any public surface, and this repository is private, until
-the notification period has run.
+They are not named in the live control room's exports. They **are** named in
+this repository's test fixtures, and the repository is public (see "Where this is
+still inconsistent" below).
 
 | | |
 |---|---|
 | Finding derived | 28 September 2026 |
-| Maintainers notified | *pending* |
-| Notice period | 14 days from notification |
-| Public naming permitted | 14 days after notification |
+| Maintainers notified | 11 October 2026: 3 of 4 by public GitHub issue ([zk-psi-verifier#1](https://github.com/kunalsinghdadhwal/zk-psi-verifier/issues/1), [zkdoc#15](https://github.com/tiadaxyz/zkdoc/issues/15), [voting-circuits#136](https://github.com/valargroup/voting-circuits/issues/136)). **lyrion-orchard: not reached** — its repository has issues disabled and no security contact. |
+| Notice period | 14 days from notification (to 25 October 2026) |
+| Public naming permitted | 25 October 2026, for the three notified; not for lyrion-orchard until a channel is found |
 
-## Why the repository is private
+## Why the repository was private
 
 Pushing this repository publicly would name those four projects as affected.
 Our own policy calls that a disclosure — *"this advisory exists"* and *"these
@@ -28,6 +29,12 @@ We considered amending the policy so the dates worked out. We did not, because a
 project whose premise is *no claim without measurement* cannot quietly relax its
 own rules when they become inconvenient. The policy was written first precisely
 so it would bind under pressure.
+
+**It was then made public anyway**, before any maintainer notice had gone out,
+because the hackathon judges on open source and a private repository forfeits
+that. So this document's original position (private until the clock has run) was
+not kept, and the section below records the consequence rather than pretending
+otherwise.
 
 ## How the finding is presented before the clock runs
 
@@ -43,8 +50,9 @@ a limitation; it is the embargo mechanism running on a real embargo, which is
 better evidence than the names would have been.
 
 What is said publicly before the clock runs: *four published crates, unnamed in
-the live exports, resolve to affected versions. Maintainers have **not** yet
-been notified, so the notice period has not started.*
+the live exports, resolve to affected versions. Three maintainers
+were notified on 11 October 2026 and the notice period runs to 25 October; the
+fourth could not be reached because its repository has issues disabled.*
 
 ## Where this is still inconsistent
 
@@ -60,7 +68,9 @@ public: the advisory is published, and each crate's dependency requirement is
 visible on crates.io. What our policy treats as disclosure is the *aggregation*,
 and the aggregation is what the repository performs.
 
-The resolution is to notify the maintainers, which has not been done.
+The resolution is to notify the maintainers. That was done on 11 October 2026 for
+three of the four (see the table above); the fourth, lyrion-orchard, has issues
+disabled and no published security contact, so it remains unreached.
 
 ## A leak that was live
 

@@ -8,12 +8,15 @@ import { Impact } from "./views/Impact";
 import { Drills } from "./views/Drills";
 import { Fleet } from "./views/Fleet";
 import { About } from "./views/About";
+import { Check } from "./views/Check";
+import { Landing } from "./Landing";
 
 const VIEWS = [
   { id: "overview", label: "Overview" },
   { id: "impact", label: "Impact" },
   { id: "drills", label: "Fire drills" },
   { id: "fleet", label: "Fleet" },
+  { id: "check", label: "Check yours" },
   { id: "about", label: "How it works" },
 ] as const;
 
@@ -43,6 +46,12 @@ const STEPS: TourStep[] = [
     body: "A real exercise recorded against Solana devnet, replayed at the gaps in its own record. The signatures link to the live explorer — these transactions actually happened.",
   },
   {
+    target: "liveread",
+    view: "fleet",
+    title: "Is any of this real?",
+    body: "Fair question. Everything else on the page comes from a file the CLI exported. Press Read from devnet and your browser queries Solana directly, pulls the actual passport account and decodes it here — no file, no server of ours in between.",
+  },
+  {
     target: "audience",
     view: "overview",
     title: "Public vs operator",
@@ -50,24 +59,46 @@ const STEPS: TourStep[] = [
   },
 ];
 
+// The landing page lives at the bare URL; the control room lives at #app/<view>.
+// Hash routing keeps deep links working on a static host with no rewrites.
+function routeFromHash(): string | null {
+  const h = window.location.hash.replace(/^#\/?/, "");
+  if (!h.startsWith("app")) return null;
+  const v = h.split("/")[1];
+  return VIEWS.some((x) => x.id === v) ? v : "overview";
+}
+
 export function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [state, setState] = useState<State | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [audience, setAudience] = useState<"PUBLIC" | "OPERATOR">("PUBLIC");
-  const [view, setView] = useState<string>("overview");
+  const [route, setRoute] = useState<string | null>(routeFromHash);
+  const view = route ?? "overview";
+  const setView = (v: string) => {
+    window.location.hash = `#app/${v}`;
+  };
   const [tour, setTour] = useState(false);
 
   useEffect(() => applyTheme(theme), [theme]);
 
+  useEffect(() => {
+    const on = () => {
+      setRoute(routeFromHash());
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+
   // Hold the tour until data has landed, so step one does not spotlight a
   // skeleton.
   useEffect(() => {
-    if (state && !hasSeenTour()) {
+    if (state && route !== null && !hasSeenTour()) {
       const t = setTimeout(() => setTour(true), 650);
       return () => clearTimeout(t);
     }
-  }, [state]);
+  }, [state, route]);
 
   useEffect(() => {
     const file = audience === "OPERATOR" ? "state.operator.json" : "state.json";
@@ -92,13 +123,21 @@ export function App() {
     };
   }, [state]);
 
+  if (route === null) {
+    return <Landing theme={theme} onTheme={() => setTheme(theme === "dark" ? "light" : "dark")} />;
+  }
+
   return (
     <div className="shell">
+      <div className="lp-bg" aria-hidden="true">
+        <i className="b1" /><i className="b2" /><i className="b3" />
+      </div>
       <header className="topbar">
-        <div className="brand">
+        <a className="brand" href="#" title="Back to the overview page" style={{ textDecoration: "none", color: "inherit" }}>
+          <svg className="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 44 C 20 18, 32 14, 52 14" fill="none" stroke="#3fb950" strokeWidth="6" strokeLinecap="round" /><path d="M12 44 C 20 18, 32 14, 52 14" fill="none" stroke="#d29922" strokeWidth="6" strokeLinecap="round" strokeDasharray="26 100" /><circle cx="52" cy="14" r="6" fill="#f85149" /></svg>
           <h1>Halflife</h1>
           <span>control room</span>
-        </div>
+        </a>
 
         <nav className="nav" aria-label="Views">
           {VIEWS.map((v) => (
@@ -152,6 +191,7 @@ export function App() {
         {view === "impact" && <Impact state={state} audience={audience} />}
         {view === "drills" && <Drills exercises={state?.exercises ?? []} />}
         {view === "fleet" && <Fleet state={state} />}
+        {view === "check" && <Check />}
         {view === "about" && <About />}
       </main>
 
@@ -160,7 +200,9 @@ export function App() {
           Every figure here is produced by <code>halflife export</code> from the
           registry and from exercises run against Solana devnet. The interface
           computes nothing of its own — a dashboard that derives its own numbers
-          can show something the system does not believe. Drill timings are the
+          can show something the system does not believe. The two exceptions
+          query a public source directly from your browser and say so: the
+          devnet read (Fleet) and the lockfile check (Check yours, unsigned). Drill timings are the
           gaps in the record, scaled for watchability and labelled when they are.
         </p>
       </footer>

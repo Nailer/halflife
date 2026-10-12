@@ -48,6 +48,34 @@ pub const HYPERLANE_OUTBOX_DISPATCH: u8 = 4;
 pub const DISPATCH_AUTHORITY_SEEDS: &[&[u8]] =
     &[b"hyperlane_dispatcher", b"-", b"dispatch_authority"];
 
+/// Hyperlane mailboxes this registry will ever CPI into.
+///
+/// `dispatch` hands the dispatch-authority PDA's signature to whatever program
+/// the route names, and Solana propagates signer privileges down a CPI chain. A
+/// route pointing at an attacker's program would let it forward that signature
+/// to the real mailbox and dispatch arbitrary bytes *as this program*, which
+/// would defeat the destination's `originSender` check entirely.
+///
+/// So the target is pinned to known mailboxes in code, independent of who is
+/// allowed to set routes. Two independent controls: admin-gated routes, and an
+/// allowlist, so a compromised admin key still cannot aim the signature at a
+/// program of its choosing.
+pub const HYPERLANE_MAILBOXES: [Pubkey; 3] = [
+    // Solana devnet
+    pubkey!("5yM5YrrzHCrp4ZPLKN9Y2eUAqEWsTbBqaorgbngQcR54"),
+    // Solana testnet
+    pubkey!("75HBBLae3ddeneJVrZeyrDfv6vb7SMC3aCpBucSXS5aR"),
+    // Solana mainnet-beta
+    pubkey!("E588QtVUvresuXq2KoNEwAmoifCzYGpRBdHByN9KQMbi"),
+];
+
+pub fn is_known_mailbox(k: &Pubkey) -> bool {
+    HYPERLANE_MAILBOXES.iter().any(|m| m == k)
+}
+
+/// Domain prefix for the proof that a registrant controls an issuer key.
+pub const REGISTER_DOMAIN: &[u8] = b"halflife-register-issuer-v1";
+
 /// Seeds for Hyperlane's outbox PDA, owned by the mailbox program.
 pub const MAILBOX_OUTBOX_SEEDS: &[&[u8]] = &[b"hyperlane", b"-", b"outbox"];
 
@@ -69,6 +97,19 @@ pub mod halflife_passport {
 
     /// Register an issuer. The authority may later revoke it.
     pub fn register_issuer(ctx: Context<RegisterIssuer>, key: [u8; 32]) -> Result<()> {
+        // Proof that the registrant controls the issuer key: the issuer must
+        // have signed `REGISTER_DOMAIN || authority`. Without this, anyone could
+        // register someone else's *public* key first, become its authority, and
+        // revoke it, squatting an identity they have no claim to.
+        //
+        // Binding the authority into the message makes the proof
+        // non-transferable: a signature produced for one registrant is useless
+        // to another.
+        let mut msg = Vec::with_capacity(REGISTER_DOMAIN.len() + 32);
+        msg.extend_from_slice(REGISTER_DOMAIN);
+        msg.extend_from_slice(ctx.accounts.authority.key().as_ref());
+        verify_ed25519(&ctx.accounts.instructions, &key, &msg)?;
+
         let now = Clock::get()?.unix_timestamp;
         let rec = &mut ctx.accounts.issuer;
         rec.key = key;
@@ -77,6 +118,33 @@ pub mod halflife_passport {
         rec.revoked_at = 0;
         rec.bump = ctx.bumps.issuer;
         emit!(IssuerRegistered { key, at: now });
+        Ok(())
+    }
+
+    /// Create the registry configuration. Whoever calls this first becomes the
+    /// admin, so it must be called in the same step as deployment. The admin
+    /// controls dispatch routes and nothing else: it cannot publish a passport,
+    /// register an issuer, or change a status.
+    pub fn init_config(ctx: Context<InitConfig>) -> Result<()> {
+        let c = &mut ctx.accounts.config;
+        c.admin = ctx.accounts.admin.key();
+        c.bump = ctx.bumps.config;
+        emit!(AdminChanged {
+            previous: Pubkey::default(),
+            current: c.admin
+        });
+        Ok(())
+    }
+
+    /// Hand the admin role to another key, for example a multisig.
+    pub fn set_admin(ctx: Context<SetAdmin>, new_admin: Pubkey) -> Result<()> {
+        let c = &mut ctx.accounts.config;
+        let previous = c.admin;
+        c.admin = new_admin;
+        emit!(AdminChanged {
+            previous,
+            current: new_admin
+        });
         Ok(())
     }
 
@@ -171,11 +239,12 @@ pub mod halflife_passport {
         recipient: [u8; 32],
         mailbox: Pubkey,
     ) -> Result<()> {
+        require!(is_known_mailbox(&mailbox), HalflifeError::UnknownMailbox);
         let route = &mut ctx.accounts.route;
         route.destination_domain = destination_domain;
         route.recipient = recipient;
         route.mailbox = mailbox;
-        route.authority = ctx.accounts.authority.key();
+        route.authority = ctx.accounts.admin.key();
         route.bump = ctx.bumps.route;
         emit!(RouteSet {
             destination_domain,
@@ -203,6 +272,9 @@ pub mod halflife_passport {
             route.mailbox,
             HalflifeError::MailboxMismatch
         );
+        // Checked again here, not only when the route is written: whatever a
+        // route says, the signature never goes to an unknown program.
+        require!(is_known_mailbox(&route.mailbox), HalflifeError::UnknownMailbox);
 
         let body = p.canonical_bytes();
 
@@ -451,6 +523,9 @@ pub struct RegisterIssuer<'info> {
     pub issuer: Account<'info, IssuerRecord>,
     #[account(mut)]
     pub authority: Signer<'info>,
+    /// CHECK: address-constrained to the instructions sysvar, read only.
+    #[account(address = INSTRUCTIONS_ID)]
+    pub instructions: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -510,15 +585,46 @@ impl DispatchRoute {
 pub struct SetRoute<'info> {
     #[account(
         init_if_needed,
-        payer = authority,
+        payer = admin,
         space = DispatchRoute::LEN,
         seeds = [b"route", destination_domain.to_le_bytes().as_ref()],
         bump
     )]
     pub route: Account<'info, DispatchRoute>,
+    /// Routes are admin-only. An earlier version let anyone create or overwrite
+    /// one, which let an attacker choose the program receiving this registry's
+    /// dispatch signature.
+    #[account(seeds = [b"config"], bump = config.bump, has_one = admin @ HalflifeError::NotAdmin)]
+    pub config: Account<'info, Config>,
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub admin: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[account]
+pub struct Config {
+    pub admin: Pubkey,
+    pub bump: u8,
+}
+
+impl Config {
+    pub const LEN: usize = 8 + 32 + 1;
+}
+
+#[derive(Accounts)]
+pub struct InitConfig<'info> {
+    #[account(init, payer = admin, space = Config::LEN, seeds = [b"config"], bump)]
+    pub config: Account<'info, Config>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetAdmin<'info> {
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = admin @ HalflifeError::NotAdmin)]
+    pub config: Account<'info, Config>,
+    pub admin: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -556,6 +662,12 @@ pub struct Dispatch<'info> {
 }
 
 // ---------------------------------------------------------------------------
+
+#[event]
+pub struct AdminChanged {
+    pub previous: Pubkey,
+    pub current: Pubkey,
+}
 
 #[event]
 pub struct RouteSet {
@@ -627,4 +739,8 @@ pub enum HalflifeError {
     CircuitMismatch,
     #[msg("supplied mailbox program does not match the configured route")]
     MailboxMismatch,
+    #[msg("signer is not the registry admin")]
+    NotAdmin,
+    #[msg("mailbox is not a known Hyperlane mailbox")]
+    UnknownMailbox,
 }
