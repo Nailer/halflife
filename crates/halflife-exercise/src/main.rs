@@ -205,6 +205,18 @@ impl Ctx {
         })
     }
 
+    /// For commands that only read accounts. The payer is a throwaway key that
+    /// never signs anything, so a fresh clone needs no funded keypair.
+    fn read_only(rpc_url: &str) -> Result<Self> {
+        Ok(Self {
+            rpc: RpcClient::new_with_commitment(rpc_url.to_string(), CommitmentConfig::confirmed()),
+            payer: Keypair::new(),
+            passport_program: Pubkey::from_str(PASSPORT_ID)?,
+            consumer_program: Pubkey::from_str(CONSUMER_ID)?,
+            issuer_key: SigningKey::from_bytes(&[11u8; 32]),
+        })
+    }
+
     fn issuer_pub(&self) -> [u8; 32] {
         self.issuer_key.verifying_key().to_bytes()
     }
@@ -843,7 +855,7 @@ fn verify_dispatch(record: &Path, rpc_url: &str) -> Result<()> {
 
 /// Read a passport account and rebuild its canonical bytes.
 fn fetch(circuit: Option<&str>, rpc_url: &str) -> Result<()> {
-    let ctx = Ctx::new(rpc_url, Path::new("solana/deploy-keypair.json"))?;
+    let ctx = Ctx::read_only(rpc_url)?;
 
     let hash: [u8; 32] = match circuit {
         Some(h) => hex::decode(h)

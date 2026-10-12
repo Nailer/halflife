@@ -102,7 +102,8 @@ Run the full verification pass. It skips any layer whose toolchain is missing ra
 ```
 
 ```text
-39 passed   0 failed   0 skipped
+39 passed   0 failed   0 skipped     # everything installed
+28 passed   0 failed   1 skipped     # fresh clone, Solana toolchain not built
 ```
 
 Skips are labelled with the command that would enable them, for example `Solana programs not built — run: cd solana && anchor build`. See [Verify everything](/guides/verify-everything).

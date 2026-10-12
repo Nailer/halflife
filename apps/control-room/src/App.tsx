@@ -95,8 +95,11 @@ export function App() {
 
   // Hold the tour until data has landed, so step one does not spotlight a
   // skeleton.
+  // Only auto-start on the overview: step one navigates there, which would
+  // otherwise hijack a deep link such as #app/check for a first-time visitor.
+  // The tour stays one click away from the help button on every page.
   useEffect(() => {
-    if (state && route !== null && !hasSeenTour()) {
+    if (state && route === "overview" && !hasSeenTour()) {
       const t = setTimeout(() => setTour(true), 650);
       return () => clearTimeout(t);
     }

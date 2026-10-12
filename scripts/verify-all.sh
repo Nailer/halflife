@@ -37,11 +37,19 @@ else
   bad "cargo test"; tail -20 /tmp/hl.t | sed 's/^/       /'
 fi
 
+# forge-std is not vendored (evm/lib is gitignored). Fetch it once so a fresh
+# clone runs the Solidity checks instead of failing on a missing import.
+if command -v forge >/dev/null 2>&1 && [ ! -d evm/lib/forge-std ]; then
+  (cd evm && forge install foundry-rs/forge-std --no-git >/tmp/hl.forgestd 2>&1) || true
+fi
+
 # ------------------------------------------------- 3. format conformance
 step "3. Wire format — three independent implementations"
 run "Rust reproduces all vectors"  "$H vectors verify fixtures/vectors.json"
 run "Node reproduces all vectors"  "node packages/passport-ts/verify-vectors.mjs fixtures/vectors.json"
-if (cd evm && forge test --match-contract ConformanceTest >/tmp/hl.sol 2>&1); then
+if [ ! -d evm/lib/forge-std ]; then
+  skip "Solidity conformance — forge-std unavailable (run: cd evm && forge install foundry-rs/forge-std --no-git)"
+elif (cd evm && forge test --match-contract ConformanceTest >/tmp/hl.sol 2>&1); then
   ok "Solidity decodes Rust-produced vectors"
 else
   bad "Solidity conformance"; tail -12 /tmp/hl.sol | sed 's/^/       /'
@@ -219,7 +227,11 @@ step "9. Devnet deployments"
 for pair in "halflife_passport:CkDhRfJRiGEa3kgnEUEvCBgyht62MTkDD6e754DLtB2" \
             "halflife_consumer:BAcrrJYj5Y5DfcqnHgDwm5rhJUJdowZh25NvFLJAUzSW"; do
   name="${pair%%:*}"; addr="${pair##*:}"
-  if solana program show "$addr" --url devnet --keypair solana/deploy-keypair.json 2>/dev/null | grep -q "Program Id"; then
+  # Plain RPC rather than `solana program show`, which insists on a local signer
+  # even to read -- a fresh clone has none.
+  if curl -s --max-time 15 https://api.devnet.solana.com -H 'content-type: application/json' \
+       -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getAccountInfo\",\"params\":[\"$addr\",{\"encoding\":\"base64\"}]}" \
+       | python3 -c "import sys,json;v=json.load(sys.stdin).get('result',{}).get('value');sys.exit(0 if v and v.get('executable') else 1)" 2>/dev/null; then
     ok "$name live at $addr"
   else
     skip "$name — devnet unreachable or not deployed"

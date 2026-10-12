@@ -10,9 +10,16 @@ When a vulnerability is published in cryptography your protocol depends on, your
 program stops accepting proofs — in one slot, with no governance vote, no
 redeploy, and nobody awake.
 
-[**Live →**](https://halflife-control-room.vercel.app) · [Demo script](docs/submission/demo-script.md) · [How it works](#how-it-works)
+[**Live →**](https://halflife-control-room.vercel.app) · [**Documentation**](https://halflife.mintlify.site/) · [Demo script](docs/submission/demo-script.md) · [How it works](#how-it-works)
 
 </div>
+
+> **New here? Start with the [Documentation](https://halflife.mintlify.site/).**
+> It explains what Halflife is and who it is for in plain language, then walks
+> you through the **[Quickstart](https://halflife.mintlify.site/get-started/quickstart)**:
+> scan a vulnerable and a patched circuit, verify both passports, and watch the
+> fail-safe block one. About ten minutes, no blockchain needed.
+
 
 ---
 
@@ -127,17 +134,27 @@ causes the block.**
 
 ## Try it
 
+The quickest route is the **[Quickstart](https://halflife.mintlify.site/get-started/quickstart)**
+in the documentation: Rust only, about ten minutes, no blockchain.
+
+To run every check yourself:
+
 ```bash
 git clone https://github.com/Nailer/halflife && cd halflife
 ./scripts/verify-all.sh
 ```
 
-Thirty-nine checks across every layer. Every number it prints is measured during
-the run, not quoted.
+Needs `cargo`, `node`, `forge` and `python3`. On a fresh clone the first run
+compiles everything, which takes several minutes, and prints:
 
 ```
-39 passed   0 failed   0 skipped
+28 passed   0 failed   1 skipped
 ```
+
+The one skip is the Solana program tests, which need the Solana toolchain.
+Run `cd solana && anchor build` first and the same script reports the full
+`39 passed   0 failed   0 skipped`. Every number it prints is measured during
+the run, not quoted.
 
 Then see the blast radius for yourself:
 

@@ -17,7 +17,11 @@ commit 69e761e · 2026-10-12T13:40Z
   all checks green
 ```
 
-It needs `cargo`, `node`, `forge`, `anchor`, and `solana`. Network access is only needed for the devnet sections, which are **skipped** (not failed) when unreachable. Exit code `0` means all green, and `1` means at least one failure.
+<Note>
+**On a fresh clone** the same script reports `28 passed   0 failed   1 skipped`. The skip is the Solana program tests, which need `cd solana && anchor build` first. With that built it reports the full 39. The first run compiles everything, so allow several minutes.
+</Note>
+
+It needs `cargo`, `node`, `forge`, and `python3`, plus `anchor` and `solana` for the Solana program tests. `forge-std` is fetched automatically if missing. Network access is only needed for the devnet sections, which are **skipped** (not failed) when unreachable. Exit code `0` means all green, and `1` means at least one failure.
 
 <Accordion title="In plain terms" icon="lightbulb">
 This one command tests the whole project from top to bottom and prints a tick or a cross for each check. The numbers it shows are measured fresh each time, not copied from anywhere.
