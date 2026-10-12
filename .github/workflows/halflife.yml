@@ -66,3 +66,49 @@ jobs:
 
       - name: A closure carrying an advisory is rejected
         run: bash scripts/ci-gate.sh fail fixtures/orchard-vulnerable
+
+  # The reusable Action, exercised through `uses:` exactly as a user would call
+  # it, in both directions. Inputs are lockfiles copied WITHOUT a halflife.toml,
+  # which is what a real project looks like and tests the generated manifest.
+  action:
+    name: reusable action
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Prepare lockfile-only inputs
+        run: |
+          mkdir -p /tmp/in-clean /tmp/in-bad
+          cp fixtures/orchard-patched/Cargo.lock /tmp/in-clean/Cargo.lock
+          cp fixtures/orchard-vulnerable/Cargo.lock /tmp/in-bad/Cargo.lock
+
+      - name: A clean lockfile passes
+        id: clean
+        uses: ./
+        with:
+          path: /tmp/in-clean
+          offline: "true"
+      - name: Clean run reported clean
+        run: test "${{ steps.clean.outputs.status }}" = "clean"
+
+      - name: A lockfile with an advisory is rejected
+        id: bad
+        uses: ./
+        continue-on-error: true
+        with:
+          path: /tmp/in-bad
+          offline: "true"
+      - name: The gate must have failed the step
+        run: |
+          test "${{ steps.bad.outcome }}" = "failure" || { echo "::error::the gate let a vulnerable lockfile through"; exit 1; }
+          test "${{ steps.bad.outputs.status }}" = "advisories"
+
+      - name: deny=false reports without failing
+        id: soft
+        uses: ./
+        with:
+          path: /tmp/in-bad
+          offline: "true"
+          deny: "false"
+      - name: Soft mode still reported the advisory
+        run: test "${{ steps.soft.outputs.status }}" = "advisories"

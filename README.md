@@ -63,8 +63,22 @@ let a program on-chain act on it.
 
 ### 2 · Don't let me ship it again
 
-Drop the GitHub Action in. A pull request that pulls a vulnerable crypto
+Add the GitHub Action. A pull request that pulls a vulnerable crypto
 dependency into your closure **fails the build** before anyone merges it.
+
+```yaml
+- uses: actions/checkout@v4
+- uses: dtolnay/rust-toolchain@stable
+- uses: Nailer/halflife@main     # pin a commit SHA in real use
+  with:
+    path: .                       # directory containing Cargo.lock
+```
+
+It builds the CLI from source on first use (a few minutes, cached after), checks
+your lockfile closure against OSV, writes the affected packages to the job
+summary and fails on any advisory (`deny: "false"` reports without failing). It is
+tested in both directions in this repository's own CI. Capability C1: **any**
+advisory counts, with no severity or reachability filter.
 
 ### 3 · Stop my protocol automatically
 

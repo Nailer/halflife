@@ -1,0 +1,98 @@
+name: Halflife advisory gate
+description: >
+  Fail the build when a published advisory affects any registry crate in your
+  Cargo.lock closure. Capability C1: dependency closure matched against OSV. No
+  severity or reachability filter, so expect noise on large workspaces.
+author: Nailer
+branding:
+  icon: shield
+  color: orange
+
+inputs:
+  path:
+    description: Directory containing the Cargo.lock to check.
+    default: "."
+  proof-system:
+    description: Free-text label recorded in the generated manifest (halo2, groth16, noir, ...).
+    default: unknown
+  offline:
+    description: Use the pinned advisory snapshot shipped with the action instead of querying OSV.
+    default: "false"
+  deny:
+    description: Exit non-zero when an advisory is found. Set false to report without failing.
+    default: "true"
+
+outputs:
+  status:
+    description: "VALID-looking result as text: 'clean' or 'advisories'."
+    value: ${{ steps.gate.outputs.status }}
+
+runs:
+  using: composite
+  steps:
+    - name: Cache the build
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ${{ github.action_path }}/target
+        key: halflife-gate-${{ runner.os }}-${{ hashFiles(format('{0}/Cargo.lock', github.action_path)) }}
+
+    - name: Build the Halflife CLI
+      shell: bash
+      run: cargo build --release --locked -p halflife-cli --manifest-path "${{ github.action_path }}/Cargo.toml"
+
+    - name: Check the dependency closure
+      id: gate
+      shell: bash
+      env:
+        HL: ${{ github.action_path }}/target/release/halflife
+        TARGET: ${{ inputs.path }}
+        PROOF: ${{ inputs.proof-system }}
+        OFFLINE: ${{ inputs.offline }}
+        DENY: ${{ inputs.deny }}
+        SNAP: ${{ github.action_path }}/fixtures/osv-snapshot.json
+      run: |
+        set -uo pipefail
+        [ -f "$TARGET/Cargo.lock" ] || { echo "::error title=No Cargo.lock::$TARGET/Cargo.lock not found"; exit 1; }
+
+        # The scanner reads a small manifest. Write a throwaway one next to a
+        # copy of the lockfile so the user's tree is not modified.
+        WORK="$RUNNER_TEMP/halflife-gate"; rm -rf "$WORK"; mkdir -p "$WORK"
+        cp "$TARGET/Cargo.lock" "$WORK/Cargo.lock"
+        if [ -f "$TARGET/halflife.toml" ]; then
+          cp "$TARGET/halflife.toml" "$WORK/halflife.toml"
+        else
+          cat > "$WORK/halflife.toml" <<TOML
+        [subject]
+        name = "${GITHUB_REPOSITORY##*/}"
+        repository = "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+        commit = "${GITHUB_SHA}"
+        proof_system = "${PROOF}"
+        TOML
+        fi
+
+        KEY="$RUNNER_TEMP/halflife-gate-issuer.json"
+        rm -f "$KEY"   # keygen refuses to overwrite; the action may run several times per job
+        "$HL" keygen --out "$KEY" >/dev/null
+
+        args=(scan "$WORK" --issuer "$KEY" --out "$RUNNER_TEMP/halflife-gate-passport.json")
+        [ "$OFFLINE" = "true" ] && args+=(--offline --snapshot "$SNAP")
+
+        "$HL" "${args[@]}" | tee "$RUNNER_TEMP/halflife-gate.txt"
+        {
+          echo "### Halflife advisory gate"
+          echo '```'; cat "$RUNNER_TEMP/halflife-gate.txt"; echo '```'
+          echo "Capability C1: any advisory in the closure counts. No severity or reachability filter."
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        # "findings  none" is printed on a clean run, so key on the status line.
+        if grep -Eq '^status +Invalid' "$RUNNER_TEMP/halflife-gate.txt"; then
+          echo "status=advisories" >> "$GITHUB_OUTPUT"
+          echo "::error title=Advisory in dependency closure::see the job summary for the affected packages"
+          [ "$DENY" = "true" ] && exit 1
+        else
+          echo "status=clean" >> "$GITHUB_OUTPUT"
+        fi
+        exit 0
