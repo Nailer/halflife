@@ -2,6 +2,12 @@
 
 # Halflife
 
+<a href="https://youtu.be/NDLQr2LvpQc" title="Watch the demo video on YouTube">
+  <img src="docs/assets/demo-video-thumbnail.jpg" alt="Watch the Halflife demo video" width="720">
+</a>
+
+**▶ Watch the demo** (click the picture to play it on YouTube)
+
 [![CI](https://github.com/Nailer/halflife/actions/workflows/halflife.yml/badge.svg)](https://github.com/Nailer/halflife/actions/workflows/halflife.yml) ![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)
 
 **A use-by date for cryptographic security.** Signed, expiring security passports for zero-knowledge circuits, enforced on Solana.
