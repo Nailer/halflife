@@ -37,10 +37,10 @@ That is a comparison a program can make and a human can argue with.
 Not "audits expire after N days." A verification's *evidentiary strength* decays
 when the analysis frontier advances past the methodology that produced it.
 
-The concrete case: a researcher ran one auditing framework over the Orchard
-circuit with Claude Opus 4.7 and found nothing. The same framework, same code,
-with Opus 4.8 found a four-year-old soundness bug in a day. The code never
-changed. The frontier moved.
+This is an argument from how analysis tools improve, not a measured result: we
+do not claim a specific before-and-after run. The sourced incidents behind it,
+including the `halo2_gadgets` flaw behind CVE-2026-54496, are listed in the
+README.
 
 So a historical audit answers *what was knowable and testable then*. It does not
 answer *what is detectable now*. A C1 passport does not mean a circuit is

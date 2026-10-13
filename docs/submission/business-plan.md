@@ -22,10 +22,12 @@ audit. When one of them is found vulnerable the team:
 3. **cannot see the damage**: zero-knowledge failures are silent. A counterfeit
    proof verifies. Nothing reverts.
 
-2026 supplied the evidence. The `halo2_gadgets` soundness bug in Zcash's Orchard
-(CVE-2026-54496, published 6 July 2026) sat in the code for years and was found
-by a framework that found **nothing** in the same code a model generation
-earlier. An audit is a perishable good, and nobody tracks how stale theirs is.
+2026 supplied the evidence. A critical soundness flaw in the `halo2_gadgets` code
+under Zcash's Orchard (CVE-2026-54496, CVSS 9.3, published 6 July 2026, fixed in
+`halo2_gadgets` 0.5.0) is one of several 2026 incidents (see the README for the
+sourced list). An audit records what could be found with the tools of its day;
+those tools are improving quickly, and nobody tracks how stale an audit has
+become.
 
 ## 2. The product
 

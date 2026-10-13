@@ -8,7 +8,7 @@ icon: "triangle-alert"
 
 A verification's **evidentiary strength** decays when the analysis frontier moves past the methodology that produced it. The code doesn't need to change for that to happen.
 
-The concrete case Halflife is built around: a researcher ran an auditing framework over the Zcash Orchard circuit with one model generation and found nothing. The same framework, on the same code, with the next model generation, found a soundness bug that had been present for years. The code never changed. The frontier moved.
+The concrete case Halflife is built around is the `halo2_gadgets` soundness flaw under Zcash's Orchard (CVE-2026-54496, CVSS 9.3, published 6 July 2026, fixed in `halo2_gadgets` 0.5.0). This is an argument from how analysis tools improve, not a measured before-and-after result, and we do not claim one.
 
 So a historical audit answers *what was knowable and testable then*. It doesn't answer *what is detectable now*.
 

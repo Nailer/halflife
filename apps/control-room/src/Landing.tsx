@@ -181,7 +181,7 @@ const STEPS = [
 ];
 
 const PROBLEMS = [
-  { t: "An audit is a snapshot", d: "In 2026 a flaw that sat in Zcash's Orchard circuit for years was found by a framework that found nothing in the same code a model generation earlier. The code didn't change. The tools did." },
+  { t: "An audit is a snapshot", d: "An audit records what could be found with the tools of its day. Those tools keep improving, and nobody tracks how stale an audit has become. In July 2026 a critical flaw in the code under Zcash's Orchard circuit was published (CVE-2026-54496)." },
   { t: "Zero-knowledge bugs are silent", d: "A broken contract reverts. A broken circuit produces a valid-looking proof of a false statement. Nothing fails, so nobody notices." },
   { t: "Stopping takes people", d: "When a flaw is published, halting a protocol takes a meeting, a vote, signers and a redeploy. Money keeps moving the whole time." },
 ];
